@@ -95,3 +95,32 @@ defense in exactly its failure mode.
 (current_member_id() IS NOT NULL AND col = current_member_id())`. Coach-wide is an opt-in;
 unset context is member-scoped (0 rows). Update tests that codified the fail-open no-op.
 **Date:** 2026-07-02
+
+## 2026-07-02 — Sport runtime (feature/sport-runtime, wave 2, task 002 §2-4)
+
+### [generalizable] (role: developer) ESLint flat-config `files` globs need the linted file's cwd to match the config
+The custom `no-jwt-in-resolved-scope` rule and the node-script globals block are in
+`apps/api/eslint.config.mjs`. Running `eslint apps/api/.` from the REPO ROOT loads the
+ROOT `eslint.config.mjs` (flat config resolves ONE config from cwd, not per-file), so the
+apps/api blocks never apply and node-script globals/`process`/`console` errored. Running
+`eslint .` with cwd=apps/api (how turbo's per-package `lint` runs) picks up the local
+config and passes. Verify a package-local eslint rule from the package cwd, not the root.
+
+### [generalizable] (role: developer) A CI guard that names a banned string trips its own repo-wide grep
+`scripts/sport-guards.mjs` forbids the donor SDK scope; writing the literal in its regex +
+doc comment made the repo's `dependency-lint` (`text.includes('@earendil-works/')`) flag the
+guard file itself. Assemble the banned token from parts (`'@earendil' + '-works/'`) and keep
+it out of comments. Same class as a tamper-test that names its own sentinel.
+
+### [generalizable] (role: developer) ESLint Linter.verify needs BOTH a `files` glob AND a filename arg
+Testing a custom rule via `new Linter({configType:'flat'}).verify(code, config)` silently
+used the default (espree) parser and mis-parsed TS ("Unexpected token :") until I passed a
+3rd `filename` arg ('file.ts') AND kept `files:['**/*.ts']` in the config — the glob must
+MATCH the passed filename or you get "No matching configuration found". Both are required.
+
+### (role: developer, project) Sport SDK 0.5.3 barrel vs subpath
+`assertNoCredentialsInScope` is NOT on the `@theamazingwolf/sport-core` barrel — only on the
+`/governance` subpath (the barrel re-exports `resolveAndValidateScope` + the TYPES but not
+that fn). Grepped the installed dist, imported from the subpath. `composeCascade`,
+`createSlotResolver`, `scanForHardcodedModels`, `HardcodedModelError` ARE on the barrel and
+map almost 1:1 to 002c. The scope-resolver doc literally names "CIYP's SET LOCAL shape".

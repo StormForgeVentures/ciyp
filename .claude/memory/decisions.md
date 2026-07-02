@@ -41,3 +41,12 @@ De-enum + generalization decisions (all for the 002a EL-OS→CIYP brain port):
 **Decision:** Cache real embeddings on disk keyed by `sha256(model|input_type|dim|text)`, commit the fixtures, and only call the provider on a cache miss. Seed/CI re-runs cost zero tokens; a live key is needed only when content changes.
 **Rationale:** Real embeddings (never synthetic) + free deterministic re-runs + no provider key required in CI. Deleting a fixture forces a re-embed of exactly that text.
 **Date:** 2026-07-02
+
+---
+
+### 006a admin-shell: role vocabulary + superadmin modeling (role: developer)
+**Date:** 2026-07-02
+- **Delegated role = `team`, not `member`.** Spec 006a Q-2 said v1 ships `owner` + `member`, but the merged wave-1 `admin_role` enum is `('owner','team')`. Used the existing enum (`team` = the delegated config-read-only role) rather than an ALTER TYPE that would risk the parallel apps/api tracks. If Tim wants the literal name `member`, that's a follow-up `ALTER TYPE ... RENAME VALUE`. Members (customers) are a different table entirely — no collision.
+- **Superadmin = `platform_operators` table** (new, migration 20260702130000): a cross-tenant allowlist keyed by auth_user_id, NOT an `admin_role` value (superadmin is platform-level, not tenant-scoped). RLS-enabled + forced with NO app grant → the `authenticated` role can't read it; apps/api resolves it as the bypassrls system role during identity lookup.
+- **Suspended tenant = `tenant_status='paused'`** (existing enum has no 'suspended'). UI presents "Suspended"; write APIs 403 for the coach, superadmin still acts.
+- **Tenant scope binding (decision #19/H2):** `withTenantTx` drops to `authenticated` + SET LOCAL app.tenant_id from the resolved principal only, hard-codes app.context='coach' + empty member_id. Superadmin switching is the ONE client-influenced scope, honored only after `isSuperadmin` is verified server-side (X-Acting-Tenant header ignored for everyone else).

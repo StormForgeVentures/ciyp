@@ -18,8 +18,8 @@
 
 ## Wave 0 — contract freeze (1 agent, sequential)
 
-- [ ] developer — 001 §1.0 monorepo scaffold + purity gates (worktree: feature/foundation; inputs: docs/contracts, EL-OS ref; output: green workspace)
-- [ ] developer — 001 §2.0 contract freeze + private-registry publish (same worktree; output: `@stormforgeventures/ciyp-shared`+`@stormforgeventures/ciyp-ui-tokens` published → **unblocks ciyp-template**)
+- [x] developer — 001 §1.0 monorepo scaffold + purity gates (worktree: feature/foundation; inputs: docs/contracts, EL-OS ref; output: green workspace) — DONE 2026-07-02, QA'd (qa-001-wave-0)
+- [x] developer — 001 §2.0 contract freeze + private-registry publish (same worktree; output: `@stormforgeventures/ciyp-shared`+`@stormforgeventures/ciyp-ui-tokens` published → **unblocks ciyp-template**) — DONE 2026-07-02: shared-v0.1.0 live on GitHub Packages, external install proven (verify-install run 28607010885)
 
 ## Wave 1 — substrate (parallel: 2)
 

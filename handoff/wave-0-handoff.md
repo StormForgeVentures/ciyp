@@ -14,15 +14,19 @@
   Publish SHAPE proven locally: pnpm-pack tarballs installed into a clean external project (dist exports
   resolve — the exact thing ciyp-template will do).
 
-## Flagged / blocked (operator asks for Tim)
+## Flagged / blocked (operator asks — status 2026-07-02 EOD)
 
-1. **GitHub repo** (blocks AC-…-10 + unblocks ciyp-template): create `StormForgeVentures/ciyp`,
-   push `main`, tag `shared-v0.1.0` → publish workflow does the rest. Also needed before PRD-002 can
-   `pnpm add @theamazingwolf/sport-{core,server}` (org token in `.npmrc`/env).
-2. **Local Supabase** (blocks wave 1 schema work): Docker + `supabase` CLI on this machine.
-3. **Paid Voyage API key** (blocks wave 1 seed embeddings — ADR-007 prerequisite).
-4. **Local Python tooling** (nice-to-have): `sudo apt install python3-pip python3.12-venv` to run voice
-   tests locally (they run in CI regardless).
+1. **GitHub repo — ✅ RESOLVED**: repo = `StormForgeVentures/ciyp`; `shared-v0.1.0` published
+   (packages renamed `@stormforgeventures/ciyp-{shared,ui-tokens}` — decision #17); clean external
+   install proven in CI (`verify-install.yml` → `REGISTRY-INSTALL OK`). ciyp-template unblocked.
+   STILL PENDING within this ask: a read token for `@theamazingwolf/sport-*` installs (PRD-002 §2.0+,
+   not needed for §1.0 pure port).
+2. **Local Supabase — ✅ RESOLVED**: stack up via `supabase start` (ports shifted to 553xx to coexist
+   with the EL-OS local stack — see `supabase/config.toml`).
+3. **Paid Voyage API key — ⏳ PENDING**: Tim has a key, delivery pending (blocks 001 §4.2 seed
+   embeddings only; schema work can proceed).
+4. **Local Python tooling — ⏳ PENDING (nice-to-have)**: `venv` present, `pip` missing; needs
+   password: Tim runs `! sudo apt install python3-pip` (voice tests run in CI regardless).
 
 ## Decisions made in-wave (small, recorded here)
 

@@ -4,8 +4,8 @@
 -- CIYP adaptation: members are backend-mediated tenant rows, NOT auth.users PKs
 -- (EL-OS's single-tenant PostgREST model). `auth_user_id` is an optional future
 -- linkage column (nullable, no FK to auth.users → seed stays free of GoTrue rows).
--- The Kyle `archetype` / `enrollment_tier` enums are DE-ENUMED (ADR-002 §1) to
--- text keys that FK to the per-tenant config rows created in 20260702120100.
+-- The donor-coach `archetype` / `enrollment_tier` enums are DE-ENUMED (ADR-002 §1)
+-- to text keys that FK to the per-tenant config rows created in 20260702120100.
 
 -- ===========================================================================
 -- admins — the coach + team for a tenant (authoring/coach side, not members).

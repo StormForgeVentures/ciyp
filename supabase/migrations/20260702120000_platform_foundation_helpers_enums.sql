@@ -11,7 +11,7 @@
 --     a no-op in coach/admin context where app.member_id is unset)
 --   * append-only guard trigger fn + grant helpers
 --   * platform-MECHANIC enums only (ADR-002 §2). ZERO coach-IP enums: the
---     Kyle-era archetype / enrollment_tier / method-agent_kind / E.M.P.O.W.E.R.
+--     donor-era archetype / enrollment_tier / method-agent_kind / stage-name
 --     families are DE-ENUMED to per-tenant config rows or free text (ADR-002 §1).
 --
 -- RLS model note: CIYP is a backend-mediated control plane. Tenancy is carried on

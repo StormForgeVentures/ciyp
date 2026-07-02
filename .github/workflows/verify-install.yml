@@ -1,0 +1,45 @@
+# Proves AC-001-foundation-tenancy-10's install criterion: the published
+# @stormforgeventures/ciyp-shared + ciyp-ui-tokens install into a CLEAN external
+# project from GitHub Packages and their dist exports resolve. Re-run (manual
+# dispatch) after any publish to smoke-test the registry artifact ciyp-template
+# will consume.
+name: Verify external install
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: '@stormforgeventures'
+
+      - name: Install into a clean external project
+        working-directory: ${{ runner.temp }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir clean-proj && cd clean-proj
+          npm init -y > /dev/null
+          cp $NPM_CONFIG_USERCONFIG .npmrc 2>/dev/null || cp ~/.npmrc .npmrc
+          npm install @stormforgeventures/ciyp-shared @stormforgeventures/ciyp-ui-tokens
+
+      - name: Resolve dist exports (root + ./contracts subpath)
+        working-directory: ${{ runner.temp }}/clean-proj
+        run: |
+          node --input-type=module -e "
+            import * as shared from '@stormforgeventures/ciyp-shared';
+            import * as contracts from '@stormforgeventures/ciyp-shared/contracts';
+            import * as tokens from '@stormforgeventures/ciyp-ui-tokens';
+            const n = (m) => Object.keys(m).length;
+            if (!n(shared) || !n(contracts) || !n(tokens)) throw new Error('empty export surface');
+            console.log('REGISTRY-INSTALL OK — shared:', n(shared), 'contracts:', n(contracts), 'tokens:', n(tokens));
+          "

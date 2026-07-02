@@ -324,7 +324,7 @@ async function seedEconomy(c: Client): Promise<{ events: number; balance: number
         c,
         `insert into usage_ledger
            (id, tenant_id, member_id, feature, provider, model, prompt_tokens, completion_tokens, cost_micros, priced_cost_micros, pricebook_version, idempotency_key, ai_trace_id, created_at)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'seed-2026-07',$11,$12,$13) on conflict (idempotency_key) do nothing`,
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'seed-2026-07',$11,$12,$13) on conflict (tenant_id, idempotency_key) do nothing`,
         [usageId, TENANT_ID, mId, meta.feature, meta.provider, meta.model, promptTokens, completionTokens, costMicros, pricedMicros, `seed:usage:${g}`, traceId, createdAt],
       );
       await q(

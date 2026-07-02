@@ -46,7 +46,10 @@ create table usage_ledger (
   idempotency_key   text        not null,
   ai_trace_id       uuid        references ai_traces (id) on delete set null,
   created_at        timestamptz not null default now(),
-  constraint usage_ledger_idempotency_key_uq unique (idempotency_key)
+  -- Exactly-once metering is PER-TENANT (M1): a global unique on idempotency_key
+  -- would let tenant A's key collide-block or existence-probe tenant B on a money
+  -- table. Scope the uniqueness to the tenant.
+  constraint usage_ledger_tenant_idempotency_key_uq unique (tenant_id, idempotency_key)
 );
 
 create index usage_ledger_tenant_created_idx        on usage_ledger (tenant_id, created_at desc);
@@ -54,10 +57,15 @@ create index usage_ledger_tenant_feature_created_idx on usage_ledger (tenant_id,
 create index usage_ledger_tenant_member_idx          on usage_ledger (tenant_id, member_id, created_at desc);
 
 -- Append-only: guard trigger rejects UPDATE/DELETE for EVERY role; no UPDATE/DELETE
--- grant is the second fence for the app role.
+-- grant is the second fence for the app role. The BEFORE TRUNCATE statement trigger
+-- closes the C1 vector — TRUNCATE is RLS-exempt and skips the row-level guard, so it
+-- gets its own statement-level guard (paired with REVOKE TRUNCATE, migration 121200).
 create trigger usage_ledger_append_only
   before update or delete on usage_ledger
   for each row execute function public.reject_mutation();
+create trigger usage_ledger_no_truncate
+  before truncate on usage_ledger
+  for each statement execute function public.reject_mutation();
 
 select public.enable_tenant_rls('public', 'usage_ledger');
 select public.grant_app_access('public', 'usage_ledger', true);
@@ -84,6 +92,9 @@ create unique index wallet_ledger_usage_event_uq
 create trigger wallet_ledger_append_only
   before update or delete on wallet_ledger
   for each row execute function public.reject_mutation();
+create trigger wallet_ledger_no_truncate
+  before truncate on wallet_ledger
+  for each statement execute function public.reject_mutation();
 
 select public.enable_tenant_rls('public', 'wallet_ledger');
 select public.grant_app_access('public', 'wallet_ledger', true);
@@ -100,7 +111,11 @@ create table stripe_events (
   status       text        not null default 'pending',
   received_at  timestamptz not null default now(),
   processed_at timestamptz,
-  constraint stripe_events_event_id_uq unique (event_id)
+  -- Replay-protection is PER-TENANT (M3): per ADR-008 webhooks arrive from DIFFERENT
+  -- coach Stripe accounts, where event ids are unique per account, not globally. A
+  -- global unique would let coach B's event be silently dropped as a replay of an
+  -- identical id coach A already processed.
+  constraint stripe_events_tenant_event_id_uq unique (tenant_id, event_id)
 );
 
 create index stripe_events_tenant_received_idx on stripe_events (tenant_id, received_at desc);

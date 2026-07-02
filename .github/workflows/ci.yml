@@ -8,6 +8,11 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    # .npmrc references ${NODE_AUTH_TOKEN}; GITHUB_TOKEN satisfies substitution and reads
+    # @stormforgeventures/*. When @theamazingwolf/sport-* deps land (PRD-002 §2.0), swap in a
+    # cross-org read:packages secret (SPORT_PACKAGES_TOKEN) — GITHUB_TOKEN cannot read that org.
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 

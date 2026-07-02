@@ -19,14 +19,15 @@
 1. **GitHub repo — ✅ RESOLVED**: repo = `StormForgeVentures/ciyp`; `shared-v0.1.0` published
    (packages renamed `@stormforgeventures/ciyp-{shared,ui-tokens}` — decision #17); clean external
    install proven in CI (`verify-install.yml` → `REGISTRY-INSTALL OK`). ciyp-template unblocked.
-   STILL PENDING within this ask: a read token for `@theamazingwolf/sport-*` installs (PRD-002 §2.0+,
-   not needed for §1.0 pure port).
+   Sport-package read token — ✅ RESOLVED: `NODE_AUTH_TOKEN` in the dev shell (verified reads both
+   orgs); root `.npmrc` + `.env.example` committed. CI still needs a cross-org `SPORT_PACKAGES_TOKEN`
+   secret when sport-* deps land (PRD-002 §2.0 — noted in ci.yml).
 2. **Local Supabase — ✅ RESOLVED**: stack up via `supabase start` (ports shifted to 553xx to coexist
    with the EL-OS local stack — see `supabase/config.toml`).
 3. **Paid Voyage API key — ⏳ PENDING**: Tim has a key, delivery pending (blocks 001 §4.2 seed
    embeddings only; schema work can proceed).
-4. **Local Python tooling — ⏳ PENDING (nice-to-have)**: `venv` present, `pip` missing; needs
-   password: Tim runs `! sudo apt install python3-pip` (voice tests run in CI regardless).
+4. **Local Python tooling — ✅ RESOLVED**: pip 24.0 + venv installed globally (Tim, 2026-07-02);
+   local voice tests now runnable.
 
 ## Decisions made in-wave (small, recorded here)
 

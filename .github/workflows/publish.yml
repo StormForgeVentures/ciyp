@@ -20,6 +20,10 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Job-level token: repo .npmrc references ${NODE_AUTH_TOKEN} at install time; the publish
+    # steps use the same var. Swap in a cross-org secret when sport-* deps land (see ci.yml).
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 

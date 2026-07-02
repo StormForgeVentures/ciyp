@@ -28,3 +28,16 @@ De-enum + generalization decisions (all for the 002a EL-OS→CIYP brain port):
 - Voice linter: mechanic (archetype-name-leak vs injected registeredNames) is already generic; only scrubbed Kyle example names from comments. Playfulness "merlin-widening" → config param `lightnessWideningLeans: string[]`.
 - prompts: ported machinery with EMPTY placeholder content (archetypeNames()=[], QUESTION_BANK/QUOTE_CORPUS=[] placeholder). Generic orchestrator persona + classifier prompt (no Pocket Kyle, no pmm/etc). Dropped day-of-arc (Kyle archetype matrix). Seed (PRD-001) backfills real content.
 - All test fixtures de-Kyle'd (generic placeholder archetype names e.g. Sage/North Star) so the AC-5 coach-IP grep over packages/ stays clean.
+
+---
+
+### GUC-based two-layer RLS via installer helpers (role: developer) [generalizable]
+**Decision:** For a backend-mediated multi-tenant control plane, enforce tenancy with GUCs (`app.tenant_id`/`app.member_id` read by `current_tenant_id()`/`current_member_id()`), not `auth.uid()`. Tenant fence = PERMISSIVE policy; member fence = RESTRICTIVE policy `(current_member_id() is null or member_col = current_member_id())` so it ANDs with the tenant fence and is a no-op in coach context. Installed via plpgsql helpers `enable_tenant_rls`/`enable_member_rls`/`grant_app_access` so 38 tables stay consistent.
+**Rationale:** RESTRICTIVE is required for AND-composition (multiple PERMISSIVE policies OR together and would BROADEN access). Helpers eliminate per-table copy divergence. App connects as non-bypassrls `authenticated`; postgres/service_role bypass for seed/system writes.
+**Alternatives rejected:** auth.uid()-based policies (EL-OS's PostgREST model) — wrong for a backend that mediates all member access; hand-written per-table policies — 38x divergence risk.
+**Date:** 2026-07-02
+
+### Content-hash embedding fixture cache (role: developer) [generalizable]
+**Decision:** Cache real embeddings on disk keyed by `sha256(model|input_type|dim|text)`, commit the fixtures, and only call the provider on a cache miss. Seed/CI re-runs cost zero tokens; a live key is needed only when content changes.
+**Rationale:** Real embeddings (never synthetic) + free deterministic re-runs + no provider key required in CI. Deleting a fixture forces a re-embed of exactly that text.
+**Date:** 2026-07-02

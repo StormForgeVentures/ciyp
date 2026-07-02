@@ -1,0 +1,4 @@
+-- Intentionally empty. Real seed data (Luminify tenant, library corpus with live
+-- Voyage embeddings, demo members, wallet/usage ledgers) is applied by `pnpm seed`
+-- AFTER `supabase db reset`, because it requires network calls + content-hash
+-- embedding fixtures that pure SQL cannot express. See packages/db/README.md.

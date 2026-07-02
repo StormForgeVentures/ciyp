@@ -43,6 +43,22 @@ Format per entry:
 
 ---
 
+### pgvector HNSW not chosen for kNN at seed scale (role: developer) [generalizable]
+**Symptom:** EXPLAIN on a tenant+member kNN recall used a partial btree / bitmap scan (or seq scan on a pure order-by), never the HNSW index — failing a literal "plan uses HNSW" check.
+**Root cause:** At small volume (tens–hundreds of rows) exact scan over a selective filtered set is genuinely cheaper than an HNSW graph traversal, so the planner correctly avoids HNSW. Also a subquery query-vector defeats the ANN order key — production passes a constant/parameter vector.
+**Fix:** Prove HNSW is valid + selected as the *vector access path* by forcing off the small-table alternatives (`set enable_seqscan/indexscan/bitmapscan = off`) with a CONSTANT query vector; the plan then shows `Index Scan using <table>_embedding_hnsw`. Document that the optimizer selects HNSW naturally at production scale (architecture flip triggers). "No sequential scan" is still satisfied at seed scale via btree index scans.
+**Lesson:** An HNSW-usage assertion must account for cost — force off alternatives to prove usability rather than expecting the planner to pick it on a tiny table.
+**Date:** 2026-07-02
+
+### docker exec heredoc silently produced no output (role: developer) [generalizable]
+**Symptom:** `docker exec supabase_db_... psql ... <<'SQL'` returned nothing (selects didn't print).
+**Root cause:** Missing `-i` — without it docker doesn't attach stdin, so the heredoc never reaches psql.
+**Fix:** `docker exec -i <container> psql ...` for any stdin-fed heredoc/pipe.
+**Lesson:** Always `-i` on `docker exec` when feeding SQL/stdin.
+**Date:** 2026-07-02
+
+---
+
 ### Forced-off-alternatives EXPLAIN proves index USABILITY, not selection (role: qa-reviewer) [generalizable]
 **Symptom:** A seed-verify check asserted "kNN recall uses the HNSW index / never seq-scans" and passed — but it first ran `set enable_seqscan/indexscan/bitmapscan = off`. Under DEFAULT planner settings the query seq-scans and never touches the index (correct optimizer behavior at ~31 rows).
 **Root cause:** Forcing every alternative off leaves the index as the only legal plan → proves the index CAN serve the query, says nothing about whether the planner naturally picks it. The assertion name overstates the guarantee.
@@ -54,3 +70,28 @@ Format per entry:
 
 ## 2026-07-02 — vitest vi.fn + generic function type: let contextual typing infer [generalizable] (role: developer)
 When a vi.fn mock must satisfy a GENERIC function-type property (e.g. `traceAICall: <T>(opts: TraceAICallOpts<T>) => Promise<T>`), do NOT annotate the mock's parameter/generics explicitly — `vi.fn(async <T>(o: TraceAICallOpts<T>) => ...)` collapses to `Mock<(o: TraceAICallOpts<unknown>) => Promise<unknown>>` which is NOT assignable to the generic type (TS2322 "unknown not assignable to T"). Instead write `vi.fn(async (o) => ...)` inside a literal that is contextually typed by the target (e.g. `const s: AgentSubstrate = { traceAICall: vi.fn(async (o) => ...) }` or a function with return type `AgentSubstrate`) — contextual typing re-infers the generic correctly. If the mock is a standalone const you still need for `.toHaveBeenCalled` assertions, type its param via `Parameters<Fn>[0]` and cast at the assignment site (`x as unknown as Fn`); the runtime object stays the mock so `expect(x)` still works. Also: `noUncheckedIndexedAccess` + a no-arg `vi.fn(() => ...)` makes `mock.calls[0][0]` a TS2493 (tuple length 0) — give the mock a typed param so `calls[0]` carries the arg.
+
+---
+
+### [generalizable] (role: developer) Supabase default privileges silently grant TRUNCATE to app roles
+**When:** Any append-only / money table on Supabase where migrations only GRANT.
+**Symptom:** `authenticated`/`anon`/`service_role` hold TRUNCATE (+REFERENCES/TRIGGER) on
+every table your migrations create — from `postgres`'s default ACL on schema public
+(`anon=Dxtm/postgres`). TRUNCATE is RLS-exempt AND skips BEFORE UPDATE/DELETE guards, so
+append-only + no-UPDATE/DELETE-grant is NOT enough. Verify with `pg_default_acl` +
+`information_schema.role_table_grants`, not by reading the migration.
+**Fix:** REVOKE truncate/references/trigger on all tables from app roles + `alter default
+privileges for role postgres ... revoke` (future tables) + a BEFORE TRUNCATE FOR EACH
+STATEMENT guard trigger (reject_mutation works as-is; TG_OP/TG_TABLE_NAME are populated).
+**Date:** 2026-07-02
+
+### [generalizable] (role: developer) RESTRICTIVE member fence with `col IS NULL OR ...` fails OPEN
+**When:** Two-layer RLS where a member GUC scopes a second fence.
+**Symptom:** `using (current_member_id() IS NULL OR col = current_member_id())` gives
+full-tenant visibility when the member GUC is unset — a member session that forgets
+`set app.member_id` reads the whole tenant. The "defense-in-depth" layer provides zero
+defense in exactly its failure mode.
+**Fix:** Fail closed via an explicit context GUC: `current_context()='coach' OR
+(current_member_id() IS NOT NULL AND col = current_member_id())`. Coach-wide is an opt-in;
+unset context is member-scoped (0 rows). Update tests that codified the fail-open no-op.
+**Date:** 2026-07-02

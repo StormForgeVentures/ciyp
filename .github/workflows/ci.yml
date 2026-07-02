@@ -13,6 +13,22 @@ jobs:
     # cross-org read:packages secret (SPORT_PACKAGES_TOKEN) — GITHUB_TOKEN cannot read that org.
     env:
       NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # @ciyp/db seed + seed-verify + RLS isolation test run against this service.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      PGPASSWORD: postgres
+    # pgvector Postgres (major 17, matches supabase/config.toml) — the migrations
+    # need vector + the `authenticated` role; both are provisioned below.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -32,7 +48,36 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Test (includes dependency-lint purity gates)
+      - name: Install postgres client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Provision Supabase-parity roles
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "create role authenticated nologin;" \
+            -c "create role anon nologin;" -c "create role service_role nologin bypassrls;"
+
+      - name: Apply migrations
+        run: |
+          for f in $(ls supabase/migrations/*.sql | sort); do
+            echo "applying $f"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Instance-agnostic guard (no donor-coach identifiers in schema + seed)
+        run: |
+          if grep -rniE 'kyle|empowered.leader|reconnector|stabilizer|self_led|embodied_leader|catapult|mastermind|concierge|five_planes|harmonizer' \
+               supabase/migrations packages/db/src/content; then
+            echo "::error::donor-coach (Kyle-era) identifier found in schema/seed content"; exit 1
+          fi
+          echo "instance-agnostic: clean"
+
+      - name: Seed (uses committed content-hash embedding fixtures — no Voyage call)
+        run: pnpm seed
+
+      - name: Seed-verify (asserts every seeded shape; fails CI on regression)
+        run: pnpm seed:verify
+
+      - name: Test (RLS isolation + contracts + dependency-lint purity gates)
         run: pnpm test
 
       - name: Voice (Python) tests

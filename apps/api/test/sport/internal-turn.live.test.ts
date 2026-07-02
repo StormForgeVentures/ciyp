@@ -93,10 +93,12 @@ describe('internal turn on the Luminify seed', () => {
     );
 
     const types = new Set(rows.map((r) => r.event_type));
-    // Every decision type under ONE correlation id.
-    expect(types).toContain('spend_authorization');
-    expect(types).toContain('retrieval');
-    expect(types).toContain('model_call');
+    // AC-7 trace coverage: every decision type this turn exercises has ≥1 row, all under
+    // ONE correlation id. (rerank / no_shame_block / eval_judge_call fire only under their
+    // specific classifier actions / linter blocks — richer golden turns exercise those.)
+    for (const t of ['spend_authorization', 'retrieval', 'classify', 'model_call']) {
+      expect(types, `decision type '${t}' has no trace row`).toContain(t);
+    }
 
     // AC-3: a model_call row carries provider/model/tokens (the token-bearing metering row).
     const modelRow = rows.find((r) => r.event_type === 'model_call');

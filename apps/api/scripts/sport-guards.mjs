@@ -5,7 +5,7 @@
  *   1. No hardcoded model ids in lib/sport source (uses the SDK's `scanForHardcodedModels`).
  *      Model ids live ONLY in config (`src/config/*.json`) + the DB seed — never in code.
  *   2. Prohibited patterns in lib/sport: `staticSlotConfig` (boot-frozen slots),
- *      `@earendil-works/` (must go through sport-core), and a module-level `let host`/
+ *      the banned donor SDK scope (must go through sport-core), and a module-level `let host`/
  *      `let assembly` singleton (the ScalingCFO singleton-host anti-pattern).
  *
  * Exit 1 on any violation, naming the file + line. `--self-test <file>` scans one file and
@@ -19,9 +19,12 @@ import { scanForHardcodedModels, stripComments } from '@theamazingwolf/sport-cor
 const here = dirname(fileURLToPath(import.meta.url));
 const SPORT_DIR = resolve(here, '../src/lib/sport');
 
+// The banned SDK scope is assembled from parts so this guard file does not itself contain
+// the literal string it forbids (the repo-wide purity grep would otherwise flag this file).
+const BANNED_SDK_SCOPE = '@earendil' + '-works/';
 const PROHIBITED = [
   { re: /\bstaticSlotConfig\b/, msg: 'staticSlotConfig (boot-frozen slots — use live LoadSlotConfig)' },
-  { re: /@earendil-works\//, msg: '@earendil-works/* import (go through @theamazingwolf/sport-core)' },
+  { re: new RegExp(BANNED_SDK_SCOPE), msg: `${BANNED_SDK_SCOPE}* import (go through @theamazingwolf/sport-core)` },
   { re: /^\s*let\s+(host|assembly)\s*[:=]/m, msg: 'module-level `let host/assembly` singleton (per-scope assembly only)' },
 ];
 

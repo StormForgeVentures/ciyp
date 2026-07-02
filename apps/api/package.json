@@ -11,6 +11,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
+    "evals": "tsx --env-file-if-exists=../../.env src/evals/run.ts",
+    "guards": "node scripts/sport-guards.mjs",
     "lint": "eslint ."
   },
   "dependencies": {

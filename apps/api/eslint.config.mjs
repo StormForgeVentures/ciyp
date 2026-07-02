@@ -6,6 +6,19 @@ import scopeGuard from './src/eslint-rules/no-jwt-in-resolved-scope.mjs';
 export default [
   ...root,
   {
+    // Node CLI guard scripts (.mjs) — node globals, console is their UX.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        URL: 'readonly',
+        __dirname: 'readonly',
+      },
+    },
+    rules: { 'no-console': 'off' },
+  },
+  {
     files: ['src/lib/sport/**/*.ts', 'src/evals/**/*.ts'],
     plugins: {
       'ciyp-sport': scopeGuard,

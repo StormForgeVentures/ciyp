@@ -81,7 +81,7 @@ describe('assembly host cache', () => {
   it('AC-3: at the bound, the LRU evicts the least-recently-used host and emits a trace', async () => {
     const onEvict = vi.fn();
     const cache = createHostCache({
-      readConfigVersion: async (t) => '1',
+      readConfigVersion: async () => '1',
       buildHost: (t, v) => fakeHost(t, v),
       max: 2,
       onEvict,

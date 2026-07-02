@@ -1,7 +1,7 @@
 /**
- * @ciyp/api — engine entrypoint. Scaffold (PRD-001a FR-2): boots with a health route only,
- * proving the workspace + shared-contract wiring. The Sport runtime, routes, and workers
- * land in PRD-002/003+.
+ * @ciyp/api — engine entrypoint. Boots the health route plus the wave-2 surfaces:
+ * the admin console API (PRD-006a) and the program-access store (PRD-008a). The Sport
+ * runtime (PRD-002) is wired internally (lib/sport) and invoked by those surfaces.
  */
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
@@ -10,6 +10,7 @@ import { TOOL_NAMES } from '@ciyp/agents';
 import { PROMPT_BASELINES } from '@ciyp/prompts';
 import { MessagePart } from '@stormforgeventures/ciyp-shared';
 import { adminRoute } from './routes/admin.js';
+import { createStoreRoutes, defaultStoreDeps } from './store/index.js';
 import { env, validateEnv } from './lib/env.js';
 
 const app = new Hono();
@@ -27,6 +28,9 @@ app.use(
 
 // Admin API surface (own module tree — see routes/admin.ts).
 app.route('/admin', adminRoute);
+
+// PRD-008a program-access store: checkout-session, entitlement, Stripe webhook (own module tree).
+app.route('/', createStoreRoutes(defaultStoreDeps()));
 
 app.get('/health', (c) =>
   c.json({

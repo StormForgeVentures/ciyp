@@ -2,25 +2,40 @@
 // `supabase db reset && pnpm seed` twice leaves row counts unchanged. Runs as the
 // bypassrls `postgres` role (DATABASE_URL) so RLS never blocks the seed. Real Voyage
 // embeddings (cached as content-hash fixtures) — never synthetic vectors.
-import type pg from 'pg';
-import { makePool, withClient } from '../lib/pg.js';
-import { seedUuid } from '../lib/uuid.js';
-import { chunkDocument } from '../lib/chunk.js';
-import { embedDocuments, toVectorLiteral, voyageTokensSpent, EMBED_MODEL } from '../lib/voyage.js';
-import { LUMINIFY, MODEL_ROUTING, ENGINE_CONFIG, BRANDING, ARCHETYPES, TIERS, PROCESS_DEFINITIONS } from '../content/config.js';
-import { CORPUS } from '../content/corpus.js';
+import type pg from "pg";
+import { makePool, withClient } from "../lib/pg.js";
+import { seedUuid } from "../lib/uuid.js";
+import { chunkDocument } from "../lib/chunk.js";
+import {
+  embedDocuments,
+  toVectorLiteral,
+  voyageTokensSpent,
+  EMBED_MODEL,
+} from "../lib/voyage.js";
+import {
+  LUMINIFY,
+  MODEL_ROUTING,
+  ENGINE_CONFIG,
+  BRANDING,
+  ARCHETYPES,
+  TIERS,
+  PROCESS_DEFINITIONS,
+} from "../content/config.js";
+import { CORPUS } from "../content/corpus.js";
 import {
   MEMBER_SPECS,
   MARKUP_RATE,
   LOW_BALANCE_THRESHOLD_CREDITS,
   TARGET_RESIDUAL_BALANCE_CREDITS,
-} from '../content/members.js';
+} from "../content/members.js";
+import { STRIPE_CONNECTOR_SEED, subscriptionSeeds } from "../content/store.js";
 
-const TENANT_ID = seedUuid('tenant:luminify');
-const ADMIN_ID = seedUuid('admin:luminify:owner');
+const TENANT_ID = seedUuid("tenant:luminify");
+const ADMIN_ID = seedUuid("admin:luminify:owner");
 
 type Client = pg.PoolClient;
-const q = (c: Client, sql: string, params: unknown[] = []) => c.query(sql, params);
+const q = (c: Client, sql: string, params: unknown[] = []) =>
+  c.query(sql, params);
 
 const memberId = (key: string) => seedUuid(`member:${key}`);
 
@@ -35,7 +50,12 @@ async function seedTenant(c: Client): Promise<void> {
     c,
     `insert into app_config (tenant_id, model_routing, engine_config, branding, prompt_set_version, member_billing_mode)
      values ($1,$2,$3,$4,'v1','absorbed') on conflict (tenant_id) do nothing`,
-    [TENANT_ID, JSON.stringify(MODEL_ROUTING), JSON.stringify(ENGINE_CONFIG), JSON.stringify(BRANDING)],
+    [
+      TENANT_ID,
+      JSON.stringify(MODEL_ROUTING),
+      JSON.stringify(ENGINE_CONFIG),
+      JSON.stringify(BRANDING),
+    ],
   );
   await q(
     c,
@@ -47,7 +67,7 @@ async function seedTenant(c: Client): Promise<void> {
     c,
     `insert into admins (id, tenant_id, email, display_name, role)
      values ($1,$2,$3,$4,'owner') on conflict (id) do nothing`,
-    [ADMIN_ID, TENANT_ID, 'owner@luminify.example', 'Luminify Coach'],
+    [ADMIN_ID, TENANT_ID, "owner@luminify.example", "Luminify Coach"],
   );
 
   for (const a of ARCHETYPES) {
@@ -55,7 +75,15 @@ async function seedTenant(c: Client): Promise<void> {
       c,
       `insert into tenant_archetypes (id, tenant_id, key, label, description, prompt_fragment, sort)
        values ($1,$2,$3,$4,$5,$6,$7) on conflict (id) do nothing`,
-      [seedUuid(`archetype:${a.key}`), TENANT_ID, a.key, a.label, a.description, a.prompt_fragment, a.sort],
+      [
+        seedUuid(`archetype:${a.key}`),
+        TENANT_ID,
+        a.key,
+        a.label,
+        a.description,
+        a.prompt_fragment,
+        a.sort,
+      ],
     );
   }
   for (const t of TIERS) {
@@ -63,7 +91,15 @@ async function seedTenant(c: Client): Promise<void> {
       c,
       `insert into tenant_tiers (id, tenant_id, key, label, description, entitlements_jsonb, sort)
        values ($1,$2,$3,$4,$5,$6,$7) on conflict (id) do nothing`,
-      [seedUuid(`tier:${t.key}`), TENANT_ID, t.key, t.label, t.description, JSON.stringify(t.entitlements_jsonb), t.sort],
+      [
+        seedUuid(`tier:${t.key}`),
+        TENANT_ID,
+        t.key,
+        t.label,
+        t.description,
+        JSON.stringify(t.entitlements_jsonb),
+        t.sort,
+      ],
     );
   }
   for (const p of PROCESS_DEFINITIONS) {
@@ -94,7 +130,9 @@ interface ChunkRow {
   text: string;
 }
 
-async function seedLibrary(c: Client): Promise<{ items: number; chunks: number }> {
+async function seedLibrary(
+  c: Client,
+): Promise<{ items: number; chunks: number }> {
   const chunkRows: ChunkRow[] = [];
   for (const doc of CORPUS) {
     const itemId = seedUuid(`library_item:${doc.key}`);
@@ -110,7 +148,7 @@ async function seedLibrary(c: Client): Promise<{ items: number; chunks: number }
         doc.kind,
         doc.source,
         doc.title,
-        doc.tags.join(', '),
+        doc.tags.join(", "),
         doc.tags,
         doc.storage_kind,
         `library/${doc.key}`,
@@ -119,7 +157,12 @@ async function seedLibrary(c: Client): Promise<{ items: number; chunks: number }
       ],
     );
     for (const ch of chunkDocument(doc.title, doc.body)) {
-      chunkRows.push({ id: seedUuid(`chunk:${doc.key}:${ch.index}`), itemId, index: ch.index, text: ch.text });
+      chunkRows.push({
+        id: seedUuid(`chunk:${doc.key}:${ch.index}`),
+        itemId,
+        index: ch.index,
+        text: ch.text,
+      });
     }
   }
 
@@ -131,7 +174,14 @@ async function seedLibrary(c: Client): Promise<{ items: number; chunks: number }
       c,
       `insert into library_chunks (id, tenant_id, library_item_id, chunk_index, text, embedding)
        values ($1,$2,$3,$4,$5,$6::vector) on conflict (id) do nothing`,
-      [r.id, TENANT_ID, r.itemId, r.index, r.text, toVectorLiteral(embeddings[i]!)],
+      [
+        r.id,
+        TENANT_ID,
+        r.itemId,
+        r.index,
+        r.text,
+        toVectorLiteral(embeddings[i]!),
+      ],
     );
   }
   return { items: CORPUS.length, chunks: chunkRows.length };
@@ -145,7 +195,9 @@ async function seedMembers(c: Client): Promise<number> {
   // Embed all member facts in one batch (cached).
   const factTexts: string[] = [];
   for (const m of MEMBER_SPECS) for (const f of m.facts) factTexts.push(f.fact);
-  const factEmbeddings = factTexts.length ? await embedDocuments(factTexts) : [];
+  const factEmbeddings = factTexts.length
+    ? await embedDocuments(factTexts)
+    : [];
   let factCursor = 0;
 
   for (const m of MEMBER_SPECS) {
@@ -164,7 +216,7 @@ async function seedMembers(c: Client): Promise<number> {
         m.archetypeKey,
         m.tierKey,
         m.enrollmentStatus,
-        m.enrollmentStatus === 'lapsed' ? daysAgoIso(21) : null,
+        m.enrollmentStatus === "lapsed" ? daysAgoIso(21) : null,
       ],
     );
 
@@ -174,7 +226,13 @@ async function seedMembers(c: Client): Promise<number> {
         c,
         `insert into member_recent_state (member_id, tenant_id, state, line_count, token_count, updated_reason)
          values ($1,$2,$3,$4,$5,'session_boundary') on conflict (member_id) do nothing`,
-        [mId, TENANT_ID, m.recentState, m.recentState.split('. ').length, Math.ceil(m.recentState.length / 4)],
+        [
+          mId,
+          TENANT_ID,
+          m.recentState,
+          m.recentState.split(". ").length,
+          Math.ceil(m.recentState.length / 4),
+        ],
       );
     }
 
@@ -186,7 +244,15 @@ async function seedMembers(c: Client): Promise<number> {
         c,
         `insert into member_facts (id, tenant_id, member_id, fact, tier, source, embedding, member_authored)
          values ($1,$2,$3,$4,$5,$6,$7::vector,false) on conflict (id) do nothing`,
-        [seedUuid(`fact:${m.key}:${idx}`), TENANT_ID, mId, f.fact, f.tier, f.source, toVectorLiteral(emb)],
+        [
+          seedUuid(`fact:${m.key}:${idx}`),
+          TENANT_ID,
+          mId,
+          f.fact,
+          f.tier,
+          f.source,
+          toVectorLiteral(emb),
+        ],
       );
     }
 
@@ -224,7 +290,14 @@ async function seedMembers(c: Client): Promise<number> {
           c,
           `insert into chat_messages (id, tenant_id, member_id, thread_id, role, parts)
            values ($1,$2,$3,$4,$5,$6) on conflict (id) do nothing`,
-          [seedUuid(`msg:${m.key}:${ti}:${mi}`), TENANT_ID, mId, threadId, msg.role, JSON.stringify(msg.parts)],
+          [
+            seedUuid(`msg:${m.key}:${ti}:${mi}`),
+            TENANT_ID,
+            mId,
+            threadId,
+            msg.role,
+            JSON.stringify(msg.parts),
+          ],
         );
       }
     }
@@ -288,14 +361,32 @@ async function seedMembers(c: Client): Promise<number> {
 }
 
 const PROVIDERS = [
-  { provider: 'openrouter', model: 'anthropic/claude-sonnet-4.6', feature: 'coaching_chat' },
-  { provider: 'openrouter', model: 'anthropic/claude-haiku-4.5', feature: 'daily_reflection' },
-  { provider: 'openrouter', model: 'anthropic/claude-sonnet-4.6', feature: 'deep_synthesis' },
-  { provider: 'openrouter', model: 'anthropic/claude-haiku-4.5', feature: 'weekly_review' },
-  { provider: 'voyage', model: EMBED_MODEL, feature: 'library_qa' },
+  {
+    provider: "openrouter",
+    model: "anthropic/claude-sonnet-4.6",
+    feature: "coaching_chat",
+  },
+  {
+    provider: "openrouter",
+    model: "anthropic/claude-haiku-4.5",
+    feature: "daily_reflection",
+  },
+  {
+    provider: "openrouter",
+    model: "anthropic/claude-sonnet-4.6",
+    feature: "deep_synthesis",
+  },
+  {
+    provider: "openrouter",
+    model: "anthropic/claude-haiku-4.5",
+    feature: "weekly_review",
+  },
+  { provider: "voyage", model: EMBED_MODEL, feature: "library_qa" },
 ];
 
-async function seedEconomy(c: Client): Promise<{ events: number; balance: number }> {
+async function seedEconomy(
+  c: Client,
+): Promise<{ events: number; balance: number }> {
   let g = 0;
   let totalDebit = 0;
 
@@ -318,20 +409,52 @@ async function seedEconomy(c: Client): Promise<{ events: number; balance: number
         `insert into ai_traces
            (id, tenant_id, member_id, event_type, feature, provider, model, prompt_tokens, completion_tokens, cost_micros, latency_ms, created_at)
          values ($1,$2,$3,'model_call',$4,$5,$6,$7,$8,$9,$10,$11) on conflict (id) do nothing`,
-        [traceId, TENANT_ID, mId, meta.feature, meta.provider, meta.model, promptTokens, completionTokens, costMicros, 400 + (g % 900), createdAt],
+        [
+          traceId,
+          TENANT_ID,
+          mId,
+          meta.feature,
+          meta.provider,
+          meta.model,
+          promptTokens,
+          completionTokens,
+          costMicros,
+          400 + (g % 900),
+          createdAt,
+        ],
       );
       await q(
         c,
         `insert into usage_ledger
            (id, tenant_id, member_id, feature, provider, model, prompt_tokens, completion_tokens, cost_micros, priced_cost_micros, pricebook_version, idempotency_key, ai_trace_id, created_at)
          values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'seed-2026-07',$11,$12,$13) on conflict (tenant_id, idempotency_key) do nothing`,
-        [usageId, TENANT_ID, mId, meta.feature, meta.provider, meta.model, promptTokens, completionTokens, costMicros, pricedMicros, `seed:usage:${g}`, traceId, createdAt],
+        [
+          usageId,
+          TENANT_ID,
+          mId,
+          meta.feature,
+          meta.provider,
+          meta.model,
+          promptTokens,
+          completionTokens,
+          costMicros,
+          pricedMicros,
+          `seed:usage:${g}`,
+          traceId,
+          createdAt,
+        ],
       );
       await q(
         c,
         `insert into wallet_ledger (id, tenant_id, entry_type, credits_delta, usage_event_id, created_at)
          values ($1,$2,'debit',$3,$4,$5) on conflict (id) do nothing`,
-        [seedUuid(`wl:debit:${g}`), TENANT_ID, -pricedMicros, usageId, createdAt],
+        [
+          seedUuid(`wl:debit:${g}`),
+          TENANT_ID,
+          -pricedMicros,
+          usageId,
+          createdAt,
+        ],
       );
     }
   }
@@ -347,19 +470,19 @@ async function seedEconomy(c: Client): Promise<{ events: number; balance: number
     c,
     `insert into wallet_ledger (id, tenant_id, entry_type, credits_delta, stripe_ref, created_at)
      values ($1,$2,'topup',$3,'seed_topup_1', now() - interval '30 days') on conflict (id) do nothing`,
-    [seedUuid('wl:topup:1'), TENANT_ID, topup1],
+    [seedUuid("wl:topup:1"), TENANT_ID, topup1],
   );
   await q(
     c,
     `insert into wallet_ledger (id, tenant_id, entry_type, credits_delta, stripe_ref, created_at)
      values ($1,$2,'topup',$3,'seed_topup_2', now() - interval '14 days') on conflict (id) do nothing`,
-    [seedUuid('wl:topup:2'), TENANT_ID, topup2],
+    [seedUuid("wl:topup:2"), TENANT_ID, topup2],
   );
   await q(
     c,
     `insert into wallet_ledger (id, tenant_id, entry_type, credits_delta, created_at)
      values ($1,$2,'adjustment',$3, now() - interval '10 days') on conflict (id) do nothing`,
-    [seedUuid('wl:adjustment:1'), TENANT_ID, adjustment],
+    [seedUuid("wl:adjustment:1"), TENANT_ID, adjustment],
   );
 
   // Materialize the balance from the ledger (no magic numbers).
@@ -369,9 +492,70 @@ async function seedEconomy(c: Client): Promise<{ events: number; balance: number
     [TENANT_ID],
   );
   const balance = Number((rows[0] as { bal: string }).bal);
-  await q(c, `update wallets set balance_credits = $2, updated_at = now() where tenant_id = $1`, [TENANT_ID, balance]);
+  await q(
+    c,
+    `update wallets set balance_credits = $2, updated_at = now() where tenant_id = $1`,
+    [TENANT_ID, balance],
+  );
 
   return { events: g, balance };
+}
+
+async function seedStore(c: Client): Promise<{ subscriptions: number }> {
+  // Set the coach's Stripe account ref (provisioning writes this on the real account).
+  await q(
+    c,
+    `update tenants set stripe_account_ref = $2 where id = $1 and stripe_account_ref is null`,
+    [TENANT_ID, STRIPE_CONNECTOR_SEED.stripeAccountRef],
+  );
+
+  // Coach-Stripe connector: METADATA ONLY (status 'pending', no vaulted key). Live
+  // restricted key + webhook secret arrive at provisioning (008b) / in the interim
+  // vault; the apps/api integration tests provision a fully-connected variant.
+  await q(
+    c,
+    `insert into tenant_integrations (tenant_id, provider, status, server_config)
+     values ($1, 'stripe', 'pending', $2::jsonb)
+     on conflict (tenant_id, provider) do nothing`,
+    [TENANT_ID, JSON.stringify(STRIPE_CONNECTOR_SEED)],
+  );
+
+  const subs = subscriptionSeeds();
+  for (const s of subs) {
+    const mId = memberId(s.memberKey);
+    await q(
+      c,
+      `insert into stripe_customers (id, tenant_id, member_id, stripe_customer_id)
+       values ($1,$2,$3,$4) on conflict (tenant_id, stripe_customer_id) do nothing`,
+      [
+        seedUuid(`stripe_customer:${s.memberKey}`),
+        TENANT_ID,
+        mId,
+        s.stripeCustomerId,
+      ],
+    );
+    await q(
+      c,
+      `insert into member_subscriptions
+         (id, tenant_id, member_id, tier_id, stripe_customer_id, stripe_subscription_id,
+          stripe_status, current_period_end)
+       values ($1,$2,$3,$4,$5,$6,$7,$8)
+       on conflict (tenant_id, member_id, stripe_subscription_id) do nothing`,
+      [
+        seedUuid(`subscription:${s.memberKey}`),
+        TENANT_ID,
+        mId,
+        seedUuid(`tier:${s.tierKey}`),
+        s.stripeCustomerId,
+        s.stripeSubscriptionId,
+        s.stripeStatus,
+        s.currentPeriodEndDays === null
+          ? null
+          : daysAgoIso(-s.currentPeriodEndDays),
+      ],
+    );
+  }
+  return { subscriptions: subs.length };
 }
 
 async function main(): Promise<void> {
@@ -379,16 +563,20 @@ async function main(): Promise<void> {
   const started = Date.now();
   try {
     await withClient(pool, async (c) => {
-      console.log(`Seeding Luminify tenant (${TENANT_ID}) — embed model: ${EMBED_MODEL}`);
+      console.log(
+        `Seeding Luminify tenant (${TENANT_ID}) — embed model: ${EMBED_MODEL}`,
+      );
       await seedTenant(c);
       const lib = await seedLibrary(c);
       const members = await seedMembers(c);
       const econ = await seedEconomy(c);
+      const store = await seedStore(c);
       console.log(
         `Seed complete in ${((Date.now() - started) / 1000).toFixed(1)}s:\n` +
           `  tenant=1  archetypes=${ARCHETYPES.length}  tiers=${TIERS.length}  processes=${PROCESS_DEFINITIONS.length}\n` +
           `  library_items=${lib.items}  library_chunks=${lib.chunks}\n` +
           `  members=${members}  usage_events=${econ.events}  wallet_balance=${econ.balance} credits\n` +
+          `  member_subscriptions=${store.subscriptions}\n` +
           `  voyage_tokens_spent_this_run=${voyageTokensSpent()} (0 = fully cached)`,
       );
     });
@@ -398,6 +586,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error('Seed failed:', err);
+  console.error("Seed failed:", err);
   process.exit(1);
 });

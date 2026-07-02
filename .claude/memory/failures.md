@@ -153,3 +153,20 @@ map almost 1:1 to 002c. The scope-resolver doc literally names "CIYP's SET LOCAL
 **Fix:** Added `apps/web/vitest.config.ts` scoping `test.include` to `src/**` and excluding `e2e/**`; Playwright runs via a separate `pnpm e2e` script.
 **Lesson:** When a package has both vitest unit tests and Playwright E2E, scope vitest's include to src/ (or exclude e2e/) so the runners don't collide on `.spec.ts`.
 **Date:** 2026-07-02
+
+---
+
+### Vitest fails to resolve imports FROM an underscore-prefixed helper (role: developer) [generalizable]
+**Symptom:** `Error: Failed to load url ../../src/store/db.js ... in _fixture.js. Does the file exist?` — only the 3 test files that imported `_fixture.ts` failed at collection (0 tests); the identical `.js`→`.ts` import resolved fine everywhere else (health.test.ts, and the same specifier in the test files themselves). Intermittent: passed twice, then failed deterministically.
+**Root cause:** Vite/vitest mishandles module resolution for imports made FROM a file whose name starts with `_` (leading-underscore modules are treated specially). Nothing to do with cache, dist, prettier, or the DATABASE — those were red herrings chased first.
+**Fix:** Renamed `test/store/_fixture.ts` → `fixture.ts` and updated the 3 importers. All 29 tests green immediately.
+**Lesson:** Don't prefix shared vitest test-helper files with `_`; name them `fixture.ts`/`helpers.ts`. A "does the file exist?" resolution error that hits only the importers of one helper is a filename quirk, not a path bug.
+**Date:** 2026-07-02
+
+### Wave-1 store schema diverged from the PRD-008a data-requirements (role: developer)
+**Symptom:** PRD-008a names `stripe_webhook_events` + `member_subscriptions`; wave-1 migrations actually shipped `stripe_events` (unique `(tenant_id,event_id)`) + an `entitlements` table with a coarse enum (`active|expired|revoked`), and NO `member_subscriptions`. The `entitlements` enum can't express contract-05's `trialing|past_due|canceled|none`.
+**Root cause:** 001b schema was authored before 008a's shape was final; migrations are the source of truth, not the PRD prose.
+**Fix:** Built the Stripe flow against the REAL `stripe_events`, and added a new `member_subscriptions` migration (Stripe status verbatim + period ends + tier_id) as the rebuildable projection contract-05 is computed from. Left `entitlements` for the later manual/api-grant path (§1.5).
+**Lesson:** Read the merged migrations before trusting a PRD's data-requirements section; reconcile in code + a new migration, and flag the divergence for QA/PM.
+**Date:** 2026-07-02
+**Date:** 2026-07-02

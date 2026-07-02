@@ -5,8 +5,8 @@
  */
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
-import { AGENTS_SCAFFOLD_VERSION } from '@ciyp/agents';
-import { PROMPTS_SCAFFOLD_VERSION } from '@ciyp/prompts';
+import { TOOL_NAMES } from '@ciyp/agents';
+import { PROMPT_BASELINES } from '@ciyp/prompts';
 import { MessagePart } from '@stormforgeventures/ciyp-shared';
 
 const app = new Hono();
@@ -15,8 +15,9 @@ app.get('/health', (c) =>
   c.json({
     ok: true,
     scaffold: {
-      agents: AGENTS_SCAFFOLD_VERSION,
-      prompts: PROMPTS_SCAFFOLD_VERSION,
+      // Proves the ported pure brain + prompt corpus import + load at the engine edge.
+      agentsToolCount: TOOL_NAMES.length,
+      promptBaselineCount: PROMPT_BASELINES.length,
       // Proves the frozen parts union is importable + parseable at the engine edge.
       partsUnionLoaded: MessagePart.safeParse({ type: 'text', text: 'ok' }).success,
     },

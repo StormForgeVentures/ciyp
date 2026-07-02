@@ -5,15 +5,27 @@
 
 ## Relevant Files
 
-- (kept current by build-run)
+### 1.0 engine port (feature/engine-port) — packages/agents (`@ciyp/agents`) + packages/prompts (`@ciyp/prompts`)
+- `packages/agents/src/{substrate,llm/types}.ts` — ModelSlot mirror + injected AgentSubstrate/LlmCaller/LlmStreamer/TraceAICall (no default provider caller — network-free).
+- `packages/agents/src/classifier/{schema,index,language-signal}.ts` (+ tests) — classifier (opaque target/archetype_lean) + 9-state language-signal scan.
+- `packages/agents/src/linters/{types,voice,no-shame,playfulness,retention,index}.ts` (+ tests) — canonical chain; config-driven lightness widening; generic archetype-name-leak.
+- `packages/agents/src/interaction-engine/index.ts` (+ test) — mode-driven engine.
+- `packages/agents/src/utility/{types,breathwork-pacer,alignment-prompt,index}.ts` (+ test) — utility agents.
+- `packages/agents/src/orchestrator/{tools,run,doc-reference}.ts` (+ tests) — generic 7-tool dispatcher, transport-agnostic turn callable, member-doc cue detector.
+- `packages/agents/src/coaching/{types,goal-gate,process-runner,index}.ts` (+ tests) — CodeProcessDefinition (source 'code'|'authored'), deterministic Goal-gate, ProcessRunner.
+- `packages/agents/src/cadence/{directive,index}.ts` (+ test) — generic bounded-thread cadence (runCadenceTurn + finalizeCadence + buildCadenceDirective + CADENCE_KINDS).
+- `packages/agents/src/artifacts/plan_document/{render,directive,index}.ts` (+ test) — deterministic plan-document renderer + fidelity gate (generic PlanDocumentData).
+- `packages/agents/src/index.ts` — barrel.
+- `packages/prompts/src/*` — states/voice-rules/retention/no-shame/language-signal/orchestrator/classifier/doc-distill (platform-generic) + archetype-voices/questions/quotes (EMPTY placeholder) + baselines registry + select (+ corpus/select tests).
+- `apps/api/src/index.ts` — health scaffold re-pointed from removed scaffold constants to ported exports (TOOL_NAMES / PROMPT_BASELINES).
 
 ## Tasks
 
-- [ ] 1.0 Engine port: pure `@ciyp/agents` + `@ciyp/prompts`, de-enummed, tests ported (maps to: 002a FR-1..8 / AC-002-sport-runtime-07..-14, index AC-5 → -05)
-  - [ ] 1.1 Port classifier (+ language signal), linter chain (canonical order), interaction engine, utility agents with `AgentSubstrate` injection — verify: ported unit tests green with mock substrate, no network
-  - [ ] 1.2 Port process runner + goal gate + cadence agents (daily/weekly/monthly_review generic) + plan-document artifact + doc-reference detector — verify: forced-finalize + `source:'authored'` parity tests
-  - [ ] 1.3 Port tool dispatcher: closed 7-tool manifest (generic names), zod-validated args, injected executors w/ graceful-empty, traced dispatches — verify: schema-reject + missing-table degradation tests
-  - [ ] 1.4 De-enum sweep + `@ciyp/prompts` port (composition machinery, baselines registry, zero Kyle text) — verify: coach-IP grep CI check green (identifier list in 002a AC-5)
+- [x] 1.0 Engine port: pure `@ciyp/agents` + `@ciyp/prompts`, de-enummed, tests ported (maps to: 002a FR-1..8 / AC-002-sport-runtime-07..-14, index AC-5 → -05) — verify: `pnpm typecheck && pnpm build && pnpm test` green (176 agents + 33 prompts tests); dependency-lint purity gate green; coach-IP grep CLEAN over packages/ + apps/
+  - [x] 1.1 Port classifier (+ language signal), linter chain (canonical order), interaction engine, utility agents with `AgentSubstrate` injection — verify: ported unit tests green with mock substrate, no network (classifier 11 + language-signal 7 + voice 28 + playfulness 12 + linter-chain 11 + interaction-engine 10 + utility 8 tests green; agents deps = shared+zod only)
+  - [x] 1.2 Port process runner + goal gate + cadence agents (daily/weekly/monthly_review generic) + plan-document artifact + doc-reference detector — verify: forced-finalize + `source:'authored'` parity tests (goal-gate 13 + process-runner 11 incl. AC-4 authored-parity + cadence 18 incl. forced-finalize emit/repair/fallback/throw + plan-document 10 + doc-reference 7 tests green)
+  - [x] 1.3 Port tool dispatcher: closed 7-tool manifest (generic names), zod-validated args, injected executors w/ graceful-empty, traced dispatches — verify: schema-reject + missing-table degradation tests (tools 15 + run 15 tests green; generic manifest: get_recent_checkin_outputs / flag_for_review; opaque agent_kind + doc kind)
+  - [x] 1.4 De-enum sweep + `@ciyp/prompts` port (composition machinery, baselines registry, zero Kyle text) — verify: coach-IP grep CI check green (identifier list in 002a AC-5) — grep over packages/+apps/ returns ZERO matches; prompts corpus ships empty/placeholder + baselines registry (8 blocks); corpus 14 + select 19 tests green
 - [ ] 2.0 Sport assembly + platform ports — first end-to-end internal turn on the seed (maps to: 002b FR-1..10 / AC-002-sport-runtime-15..-22, index AC-1 → -01, AC-6 → -06)
   - [ ] 2.1 `assembly.ts`: `hostFor(scope)` keyed `(tenant_id, config_version)`, bounded LRU (default 32, tunable), `invalidate(tenantId)`, old-host-until-ready; interim seam documented against sport-ai-sdk #25/#26/#27 — verify: identity/eviction/invalidation tests (002b AC-1..3)
   - [ ] 2.2 Scope-resolver port (request-ALS, RLS GUC, `assertNoCredentialsInScope`) + `no-jwt-in-resolved-scope` eslint rule — verify: body-spoof test (AC-4) + planted-lint-violation fails build (AC-5)

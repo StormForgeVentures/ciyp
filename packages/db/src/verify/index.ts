@@ -141,6 +141,13 @@ async function main(): Promise<void> {
       check('every usage_ledger row links a real ai_trace', num(traceLink.n) === 0, `orphans=${traceLink.n}`);
 
       // ── HNSW usability (AC-7) ──────────────────────────────────────────
+      // NOTE (QA B-S1): this proves the HNSW index is a USABLE access path, not that
+      // the planner naturally SELECTS it at seed volume. At ~31 member_facts rows the
+      // planner correctly prefers an exact scan (HNSW is approximate + has fixed
+      // overhead); natural HNSW selection kicks in at production scale (architecture
+      // §4.4). We force the exact-scan alternatives off precisely to assert the index
+      // is reachable/valid — do NOT read these checks as "production recall uses HNSW
+      // at any volume". AC-7's literal wording is reconciled to this by the architect.
       const midId = (await one(`select id from members where email='ben.mid@example.com'`)).id as string;
       const qvec = (await one(`select embedding::text v from member_facts where member_id=$1 and embedding is not null limit 1`, [midId]))?.v as string | undefined;
       if (qvec) {
@@ -153,8 +160,15 @@ async function main(): Promise<void> {
         );
         await c.query(`reset enable_seqscan; reset enable_indexscan; reset enable_bitmapscan`);
         const planText = plan.rows.map((r) => (r as Record<string, string>)['QUERY PLAN']).join('\n');
-        check('member_facts vector recall uses the HNSW index', planText.includes('member_facts_embedding_hnsw'), planText.split('\n')[0]);
-        check('member_facts vector recall never seq-scans', !/Seq Scan/i.test(planText));
+        check(
+          'HNSW is a usable access path for member_facts recall (with exact-scan alternatives forced off)',
+          planText.includes('member_facts_embedding_hnsw'),
+          planText.split('\n')[0],
+        );
+        check(
+          'HNSW path is selected when exact-scan alternatives are forced off (index reachable, not natural-plan claim)',
+          !/Seq Scan/i.test(planText),
+        );
       } else {
         check('member_facts has an embedding to plan against', false);
       }

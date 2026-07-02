@@ -14,6 +14,7 @@
 - Sibling repo `ciyp-template` = thin member UI (MVP); blocked until the 6 contracts are frozen here.
 - SDK dependency discipline: cite sport-ai-sdk issue numbers (#25–#27 critical path for coach-authored agents; #28–#31 mid-build), NEVER a version pin (Tim 2026-07-02).
 - Open for Tim: OQ-2 only (Luminify archetypes/tiers content — provisioning input; seed uses placeholders). OQ-3 resolved: markup default 1.1× (decision #13).
+- **Figma (Tim, 2026-07-02):** CIYP target file (empty, design-app builds here): `https://www.figma.com/design/BXlkljEYi55XOEa5DX5kjw/CIYP` · EL-OS donor reference: `https://www.figma.com/design/uLPSJirBSuvUDFNjDsiD8G/ELOS---Rapid-Harmony` (port the language, strip coach branding — instance-agnostic).
 
 ## Decisions log
 

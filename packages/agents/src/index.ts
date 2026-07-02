@@ -1,19 +1,42 @@
 /**
- * @ciyp/agents — the pure brain. Scaffold only (PRD-001a); the EL-OS port lands in PRD-002a.
+ * @ciyp/agents — THE PURE BRAIN. Provider-agnostic, coach-agnostic AI agents extracted
+ * and generalized from the donor engine (instance #1).
  *
  * PURITY RULE (enforced by scripts/dependency-lint.mjs, ADR-006):
- * dependencies are EXACTLY @stormforgeventures/ciyp-shared + zod. No provider SDK, no Supabase, no Sport,
- * no direct Pi-engine imports. All LLM/DB access arrives via the injected AgentSubstrate.
+ * runtime dependencies are EXACTLY @stormforgeventures/ciyp-shared + zod. No provider
+ * SDK, no Supabase, no Sport runtime, no network. All LLM/DB access arrives via the
+ * injected AgentSubstrate; all tenant content (archetypes, processes, prompts, doc kinds)
+ * arrives as opaque config — never as coach-named literals in this package.
  */
-import type { InteractionMode } from '@stormforgeventures/ciyp-shared';
 
-/** The injectable boundary every LLM-touching agent receives (EL-OS pattern, PRD-002a). */
-export interface AgentSubstrate {
-  llm: (req: { slot: string; system: string; user: string }) => Promise<{ text: string }>;
-  getModelSlot: (slot: string) => Promise<{ provider: string; model: string }>;
-  traceAICall: <T>(kind: string, run: () => Promise<T>) => Promise<T>;
-}
+// The injectable LLM / substrate boundary + the ModelSlot mirror.
+export * from './substrate.js';
+export * from './llm/types.js';
 
-/** Placeholder proving the scaffold typechecks against @stormforgeventures/ciyp-shared; replaced in PRD-002a. */
-export const AGENTS_SCAFFOLD_VERSION = '0.0.0';
-export type { InteractionMode };
+// Classifier + continuous language-signal scan.
+export * from './classifier/index.js';
+export * from './classifier/language-signal.js';
+
+// The canonical linter chain.
+export * from './linters/index.js';
+
+// Orchestrator: the ToolDispatcher + the transport-agnostic turn callable + the
+// deterministic member-doc-reference cue detector.
+export * from './orchestrator/tools.js';
+export * from './orchestrator/run.js';
+export * from './orchestrator/doc-reference.js';
+
+// Utility agents (breathwork_pacer + alignment_prompt).
+export * from './utility/index.js';
+
+// The mode-driven interaction engine.
+export * from './interaction-engine/index.js';
+
+// Bounded-thread cadence agent (generic machinery; daily / weekly / monthly_review).
+export * from './cadence/index.js';
+
+// Coaching-process substrate (CodeProcessDefinition + ProcessRunner + Goal-gate).
+export * from './coaching/index.js';
+
+// Artifacts (the deterministic plan-document renderer + fidelity check).
+export * from './artifacts/index.js';

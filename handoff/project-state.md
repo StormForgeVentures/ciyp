@@ -7,7 +7,7 @@
 ## Current constraints (live summary — PM maintains, ≤ 20 lines)
 
 - **PIPELINE:** discovery ✓ · ai-design ✓ · architecture ✓ · prd ✓ · generate-tasks ✓ · waves ✓ · **plan gate ✓ (Tim, 2026-07-02 — "we are a go")** · **BUILD ← ACTIVE** · acceptance ☐
-- **NEXT (resume here):** build-run **wave 0** (prd-001 §1.0–2.0, contract freeze — folder promoted to `in-work/`), then wave 1 per `handoff/wave-plan.md`. `design-app` runs for the UI surfaces (apps/web screens: PRD-005b/006/007a) before their build waves — design gate with Tim precedes wave-2 UI work.
+- **NEXT (resume here):** **wave 0 ✓ done + merged to main** (see `handoff/wave-0-handoff.md` — 7 ACs DONE, 1 BLOCKED on GitHub repo setup). Next: build-run **wave 1** — 002 §1.0 engine port can start immediately (no infra); 001 §3.0–4.0 schema+seed need the operator asks in the handoff (local Supabase, paid Voyage key). `design-app` before wave-2 UI work. QA sweep of wave 0 at the next boundary.
 - PRD output: 9 PRD folders (34 spec docs; PRD-009 = index-locked backlog module) + 8 task lists + `handoff/acceptance-ledger.md` (230 AC rows, all OPEN) + `handoff/reuse-map.md` (donor-code map). All plan-gate decisions resolved (#13–#15); ADR-008 fixes the money topology (coach-Stripe connector, GHL-style).
 - ai-design outputs: `docs/ai-architecture/feature-classification.md` (18 features: 2 AI-native · 9 Hybrid · 7 Traditional) + `docs/ai-architecture/ai-architecture.md` (slots) + ADR-006 (Sport runtime) + ADR-007 (EL-OS inheritances, closes OQ-1). Orientation input: `handoff/sport-sdk-orientation.md`.
 - Discovery output: `docs/project-brief.md` (canonical system brief). Architecture: `docs/architecture.md` + `docs/adr/` (7) + `docs/contracts/` (6).

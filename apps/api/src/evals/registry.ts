@@ -1,7 +1,7 @@
 /**
  * Metric set v1 (PRD-002d §4.3), with targets/alerts per feature-classification. Each
  * spec declares its key needs so the runner enforces the key-free posture. Golden sets
- * port from EL-OS where coach-agnostic; Kyle-content fixtures are replaced by
+ * port from the donor where coach-agnostic; donor-specific fixtures are replaced by
  * Luminify-seed equivalents (this seed's AI-adoption corpus).
  *
  * Key-FREE specs (drift/determinism/plan-fidelity) run and complete with no keys (AC-1);

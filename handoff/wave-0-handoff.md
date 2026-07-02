@@ -24,8 +24,8 @@
    secret when sport-* deps land (PRD-002 §2.0 — noted in ci.yml).
 2. **Local Supabase — ✅ RESOLVED**: stack up via `supabase start` (ports shifted to 553xx to coexist
    with the EL-OS local stack — see `supabase/config.toml`).
-3. **Paid Voyage API key — ⏳ PENDING**: Tim has a key, delivery pending (blocks 001 §4.2 seed
-   embeddings only; schema work can proceed).
+3. **Paid Voyage API key — ✅ RESOLVED**: in `.env` as `VOYAGE_API_KEY`; smoke-tested live
+   (voyage-3-large, 200 OK, 1024 dims — matches `member_facts vector(1024)`). All operator asks closed.
 4. **Local Python tooling — ✅ RESOLVED**: pip 24.0 + venv installed globally (Tim, 2026-07-02);
    local voice tests now runnable.
 

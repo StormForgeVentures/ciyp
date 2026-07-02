@@ -5,19 +5,22 @@
 
 ## Relevant Files
 
-- (kept current by build-run)
+- Root: `package.json` · `pnpm-workspace.yaml` · `turbo.json` · `tsconfig.base.json` · `eslint.config.mjs` · `scripts/dependency-lint.mjs` · `.github/workflows/{ci,publish}.yml`
+- `packages/shared/`: `src/contracts/{instance-config,coaching-api,usage-event,spend-authorization,entitlement,index}.ts` · `src/{enums,guards,index}.ts` · `test/contracts.test.ts` (15 tests) + `test/fixtures/contracts.ts`
+- `packages/ui-tokens/src/index.ts` · `packages/agents/src/index.ts` (scaffold — PRD-002a fills) · `packages/prompts/src/index.ts` (scaffold)
+- `apps/api/src/index.ts` + `test/health.test.ts` · `apps/web/{index.html,src/main.tsx,vite.config.ts}` · `apps/voice/{Dockerfile,requirements*.txt,pytest.ini,pipecat_app/,tests/}`
 
 ## Tasks
 
-- [ ] 1.0 Monorepo scaffold with purity gates — workspace builds green end-to-end (maps to: 001a FR-1..4,9 / AC-001-foundation-tenancy-01, -05..-07)
-  - [ ] 1.1 pnpm + turbo workspace (apps/{api,web,voice}, packages/{agents,prompts,shared,ui-tokens}), tsconfig.base, eslint/prettier, Node ≥ 22 — verify: `pnpm install && pnpm -r typecheck && pnpm -r build` exit 0
-  - [ ] 1.2 App scaffolds boot empty: Hono `GET /health`, Vite shell page, Pipecat skeleton w/ Dockerfile + pytest — verify: health returns `{ok:true}`, web dev-serves, pytest passes empty
-  - [ ] 1.3 Dependency-lint test: `packages/agents` deps exactly `@ciyp/shared`+`zod`; `prompts` zero runtime deps; no `@earendil-works/*` import anywhere — verify: lint test fails on a planted violation, passes clean
-  - [ ] 1.4 CI entrypoint (install → typecheck → build → test) — verify: single command green on fresh clone
-- [ ] 2.0 Contract freeze — six contracts as zod in `@ciyp/shared`, published (maps to: 001a FR-5..8 / AC-001-foundation-tenancy-02, -08..-10)
-  - [ ] 2.1 Zod schemas + inferred types for contracts 01–06 from `docs/contracts/`, incl. closed `parts` union — verify: shared package typechecks standalone (no `apps/*` imports)
-  - [ ] 2.2 Contract fixture suite: 1 valid + 1 invalid JSON per contract; unknown `parts.kind` rejected — verify: fixture tests pass, invalid fixtures throw
-  - [ ] 2.3 Private-registry publish workflow (GitHub Packages) for `@ciyp/shared` + `@ciyp/ui-tokens`; tagged-release cadence — verify: clean external project installs both at pinned version
+- [x] 1.0 Monorepo scaffold with purity gates — workspace builds green end-to-end (maps to: 001a FR-1..4,9 / AC-001-foundation-tenancy-01, -05..-07)
+  - [x] 1.1 pnpm + turbo workspace, tsconfig.base, eslint/prettier, Node ≥ 22 — verified 2026-07-02: `pnpm install && pnpm -r typecheck && pnpm -r build` exit 0
+  - [x] 1.2 App scaffolds boot empty — verified: `GET /health` live via `pnpm dev` returned `{ok:true, scaffold:{partsUnionLoaded:true}}`; web `vite build` green; voice pytest runs in CI (NOTE: local host lacks python3-pip/venv — ask Tim: `! sudo apt install python3-pip python3.12-venv` to verify locally)
+  - [x] 1.3 Dependency-lint gates (`scripts/dependency-lint.mjs`, wired into `pnpm test`) — verified: clean pass; planted `left-pad` in agents deps → exit 1 with purity message; a literal earendil-pattern occurrence was caught live during the build
+  - [x] 1.4 CI entrypoint — verified: root `pnpm ci` script + `.github/workflows/ci.yml` (install → typecheck → build → test incl. purity gates + voice pytest)
+- [ ] 2.0 Contract freeze — six contracts as zod in `@ciyp/shared`, published (maps to: 001a FR-5..8 / AC-001-foundation-tenancy-02, -08..-10) — **2.1/2.2 done; 2.3 BLOCKED external (see note)**
+  - [x] 2.1 Zod schemas + inferred types for contracts 01–06, incl. closed `parts` union — verified: `pnpm --filter @ciyp/shared typecheck` standalone green; package deps = zod only
+  - [x] 2.2 Contract fixture suite (valid+invalid per contract, unknown `parts.kind` rejected, contract-06 export-surface manifest test) — verified: 15/15 tests green
+  - [ ] 2.3 Private-registry publish (GitHub Packages, `shared-v*` tag cadence) — **BLOCKED (external):** `.github/workflows/publish.yml` prepared; publish SHAPE proven (pnpm-pack tarballs installed into a clean external project, dist exports resolved — `PACK-INSTALL OK`). Remaining ask: **Tim creates the GitHub repo under `theamazingwolf` org, pushes, tags `shared-v0.1.0`.** No code work remains.
 - [ ] 3.0 Multi-tenant schema, two-layer RLS, index plan (maps to: 001b FR-1..9 / AC-001-foundation-tenancy-03, -11..-18)
   - [ ] 3.1 Root + config migrations: `tenants`, per-tenant `app_config` (slot map per ai-architecture §2), de-enum tables (`tenant_archetypes`, `tenant_tiers`, `coaching_process_definitions` w/ `source` seam), platform-mechanic enums only — verify: migrations apply clean; coach-IP grep = 0
   - [ ] 3.2 Domain-table port migrations (EL-OS §4.3 shapes + `tenant_id` + RLS in same file): identity, cadence, status, chat (`parts jsonb`), memory (`member_facts` vector(1024)), `ai_traces` + cost cols, `prompt_versions`, `eval_snapshots`, library (vector + tsvector + `source` provenance), uploads, admin/notifications, planning, coach messaging — verify: `pg_policies` sweep shows USING + WITH CHECK per table

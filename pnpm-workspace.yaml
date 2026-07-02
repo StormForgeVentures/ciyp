@@ -1,0 +1,13 @@
+# pnpm workspace — ciyp-platform (monorepo shape ported from EL-OS, architecture §2.1)
+#   apps/*      → api (Hono — Sport runtime, eval harness, admin, wallet, connectors, provisioning)
+#                 web (coach/admin SPA — Vite + React + TanStack; coach/admin ONLY, decision #11)
+#                 voice (Pipecat, Python — HTTP client of the api; no Sport code)
+#   packages/*  → shared (zod contracts 01–06 + types — the contract source of truth)
+#                 agents (THE BRAIN — pure; deps: shared + zod only)
+#                 prompts (versioned prompt sets — zero runtime deps)
+#                 ui-tokens (design tokens — published with shared for ciyp-template)
+packages:
+  - "apps/*"
+  - "packages/*"
+allowBuilds:
+  esbuild: true

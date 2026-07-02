@@ -1,0 +1,3 @@
+# Runtime deps — skeleton only (PRD-001a). The Pipecat/Deepgram/Fish stack is added by
+# PRD-004a's port from EL-OS apps/voice (pin versions there, matching the EL-OS lock).
+httpx>=0.27

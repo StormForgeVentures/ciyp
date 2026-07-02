@@ -1,0 +1,29 @@
+{
+  "name": "ciyp-platform",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Coach in Your Pocket — the multi-tenant AI coaching engine + business platform (extracted and generalized from Empowered Leader OS).",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test && pnpm lint:deps",
+    "lint:deps": "node scripts/dependency-lint.mjs",
+    "ci": "pnpm install --frozen-lockfile && pnpm typecheck && pnpm build && pnpm test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.16.0",
+    "eslint": "^9.16.0",
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.17.0"
+  }
+}

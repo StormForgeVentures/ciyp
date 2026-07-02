@@ -1,0 +1,32 @@
+{
+  "name": "@ciyp/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CIYP coach/admin console — Vite + React + TanStack. Coach/admin ONLY (decision #11: member web = template PWA). Shell scaffold in PRD-001a; the console lands in PRD-006a.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@ciyp/shared": "workspace:*",
+    "@ciyp/ui-tokens": "workspace:*",
+    "@tanstack/react-query": "^5.62.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.16.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.16.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.17.0",
+    "vite": "^6.0.3",
+    "vitest": "^2.1.8"
+  }
+}

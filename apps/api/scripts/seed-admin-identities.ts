@@ -58,7 +58,12 @@ async function ensureUser(email: string, password: string): Promise<string> {
   throw new Error(`could not create or find auth user ${email}: ${res.status} ${await res.text()}`);
 }
 
-async function main(): Promise<void> {
+/**
+ * Idempotently mint + link the three admin identities. Exported so the admin integration
+ * suite can make itself self-sufficient (call in beforeAll) — the same path CI/`pnpm seed:identities`
+ * uses. Does NOT close the pool; the caller owns pool lifecycle.
+ */
+export async function seedAdminIdentities(): Promise<void> {
   const password = process.env.SEED_ADMIN_PASSWORD;
   if (!password || password.trim() === '') {
     throw new Error('SEED_ADMIN_PASSWORD is required (see .env.example).');
@@ -108,9 +113,12 @@ async function main(): Promise<void> {
   );
 }
 
-main()
-  .catch((err) => {
-    console.error('admin-identity seed failed:', err);
-    process.exitCode = 1;
-  })
-  .finally(() => closePool());
+// CLI entrypoint — only runs when invoked directly (not when imported by the test suite).
+if (import.meta.url === `file://${process.argv[1]}`) {
+  seedAdminIdentities()
+    .catch((err) => {
+      console.error('admin-identity seed failed:', err);
+      process.exitCode = 1;
+    })
+    .finally(() => closePool());
+}

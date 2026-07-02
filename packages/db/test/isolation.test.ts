@@ -123,26 +123,49 @@ afterAll(async () => {
 });
 
 describe('two-layer RLS isolation', () => {
-  it('structural sweep: every tenant-scoped table has USING + WITH CHECK tenant policy', async () => {
+  it('structural sweep: every tenant-scoped table enforces tenant_id on both reads and writes', async () => {
+    // Verify the SECURITY PROPERTY, not a naming convention: for every table carrying a
+    // tenant_id column, the read path (a policy's USING) and the write path (a policy's
+    // WITH CHECK) must both constrain `tenant_id = current_tenant_id()`. This accepts the
+    // standard `_tenant_isolation` policy (FOR ALL, both clauses) AND intentionally stricter
+    // shapes — e.g. ai_traces splits into admin-only SELECT + tenant-fenced INSERT, and
+    // eval_snapshots is admin-only ALL — as long as the tenant fence is present in each path.
     const rows = await withClient(pool, async (c) =>
       (
         await c.query(`
           with tenant_tables as (
-            select c.relname
+            select c.oid, c.relname
             from pg_class c join pg_namespace n on n.oid=c.relnamespace
             join pg_attribute a on a.attrelid=c.oid and a.attname='tenant_id' and a.attnum>0 and not a.attisdropped
             where n.nspname='public' and c.relkind='r'
+          ),
+          fences as (
+            select tt.oid, tt.relname,
+              bool_or(
+                p.polcmd in ('r','*')          -- SELECT or ALL
+                and pg_get_expr(p.polqual, p.polrelid) like '%tenant_id = current_tenant_id()%'
+              ) as read_fenced,
+              bool_or(
+                p.polcmd in ('a','*')          -- INSERT or ALL
+                and pg_get_expr(p.polwithcheck, p.polrelid) like '%tenant_id = current_tenant_id()%'
+              ) as write_fenced
+            from tenant_tables tt
+            left join pg_policy p on p.polrelid = tt.oid
+            group by tt.oid, tt.relname
           )
-          select tt.relname
-          from tenant_tables tt
-          left join pg_policies p
-            on p.schemaname='public' and p.tablename=tt.relname
-           and p.policyname = tt.relname || '_tenant_isolation'
-           and p.qual is not null and p.with_check is not null
-          where p.policyname is null`)
+          select relname,
+                 coalesce(read_fenced,false) as read_fenced,
+                 coalesce(write_fenced,false) as write_fenced
+          from fences
+          where coalesce(read_fenced,false) = false or coalesce(write_fenced,false) = false`)
       ).rows,
     );
-    expect(rows, `tables missing a complete tenant policy: ${rows.map((r) => r.relname).join(', ')}`).toHaveLength(0);
+    expect(
+      rows,
+      `tables missing a tenant fence (read/write): ${rows
+        .map((r) => `${r.relname}[read=${r.read_fenced},write=${r.write_fenced}]`)
+        .join(', ')}`,
+    ).toHaveLength(0);
   });
 
   it('AC-3: tenant-A GUC returns only tenant-A rows and zero tenant-B rows on every fixture table', async () => {

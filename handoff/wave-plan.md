@@ -28,9 +28,9 @@
 
 ## Wave 2 — runtime + first surfaces (parallel: 3)
 
-- [ ] developer — 002 §2.0–§4.0 Sport assembly, ports, slots, cascade, eval harness (feature/sport-runtime; inputs: waves 0–1; output: end-to-end internal turn on seed, eval suite green — module AC-001..-04)
-- [ ] developer — 006 §1.0 admin shell: auth, roles, superadmin, audit log (feature/admin-shell; inputs: 001; output: tenant-fenced console live on seed)
-- [ ] developer — 008 §1.1–1.3 store: webhooks, checkout, entitlement API (feature/access-store; inputs: 001; output: contract-05 reads green in test mode. §1.4 gate wiring deferred to wave 6)
+- [~] developer — 002 §2.0–§4.0 Sport assembly, ports, slots, cascade, eval harness (feature/sport-runtime) — MERGED (main). §2.0-3.0 DONE (runtime/slots/cascade/turn traced on seed); **§4.0 eval harness PARTIAL — 2/8 metrics real, judge.ts + golden fixtures not ported; module AC-4 PARTIAL. Complete before 002 acceptance.**
+- [x] developer — 006 §1.0 admin shell: auth, roles, superadmin, audit log (feature/admin-shell) — MERGED. API layer merge-quality (17 adversarial tests vs real GoTrue+DB green). Browser suite: 0 CI coverage (skipIf !GoTrue), needs a CI Supabase stack.
+- [x] developer — 008 §1.1–1.3 store: webhooks, checkout, entitlement API (feature/access-store) — MERGED. Contract-05 fidelity met, webhook atomic+idempotent, RLS proven. Carry-forward: replace interim HS256 auth (H-1) before member traffic.
 
 ## Wave 3 — grounded coaching + money substrate (parallel: 4)
 

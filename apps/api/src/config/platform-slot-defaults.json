@@ -1,0 +1,14 @@
+{
+  "__doc__": "Platform-default model slots (002c Q-1: defaults ship as CONFIG, never code literals). A tenant's app_config.model_routing merges SHALLOW per-slot over these. Model ids live here (a config file, excluded from the rule-2 model-literal grep), never in code. Provisioning may promote these to a reserved-tenant app_config row; the loader shape is unchanged.",
+  "default": { "provider": "openrouter", "model": "anthropic/claude-sonnet-4.6" },
+  "fast": { "provider": "openrouter", "model": "anthropic/claude-haiku-4.5" },
+  "classify": { "provider": "openrouter", "model": "anthropic/claude-haiku-4.5" },
+  "deep": { "provider": "openrouter", "model": "anthropic/claude-opus-4.1" },
+  "worker": { "provider": "openrouter", "model": "anthropic/claude-haiku-4.5" },
+  "synthesis": { "provider": "openrouter", "model": "anthropic/claude-sonnet-4.6" },
+  "vision": { "provider": "openrouter", "model": "anthropic/claude-sonnet-4.6" },
+  "embed": { "provider": "voyage", "model": "voyage-3-large" },
+  "rerank": { "provider": "voyage", "model": "rerank-2.5" },
+  "stt": { "provider": "deepgram", "model": "nova-3" },
+  "tts": { "provider": "fish-audio", "model": "speech-1.6" }
+}

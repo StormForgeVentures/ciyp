@@ -17,6 +17,7 @@
     "db:reset": "supabase db reset",
     "seed": "pnpm --filter @ciyp/db seed",
     "seed:verify": "pnpm --filter @ciyp/db verify",
+    "evals": "pnpm --filter @ciyp/api evals",
     "ci": "pnpm install --frozen-lockfile && pnpm typecheck && pnpm build && pnpm test",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\""

@@ -8,6 +8,7 @@ import * as shared from '../src/index.js';
 import {
   AuthorizeRequest,
   AuthorizeResponse,
+  ChatTurnEvent,
   ChatTurnRequest,
   Entitlement,
   InstanceConfig,
@@ -47,6 +48,23 @@ describe('contract 02 — Coaching API', () => {
     expect(VoiceSessionStartResponse.parse(fx.validVoiceSessionStartResponse).sessionId).toBe(
       fx.validVoiceSessionStartResponse.sessionId,
     );
+  });
+
+  it('parses every SSE frame kind in the ChatTurnEvent union (QA SF-2)', () => {
+    for (const frame of fx.validChatTurnEvents) {
+      expect(ChatTurnEvent.parse(frame).event).toBe(frame.event);
+    }
+  });
+
+  it('rejects an unknown SSE event kind — the event union is closed at v1 (QA SF-2)', () => {
+    expect(() => ChatTurnEvent.parse(fx.unknownChatTurnEvent)).toThrow();
+  });
+
+  it('message_done carries the full parts[] in the identical frozen shape', () => {
+    const done = fx.validChatTurnEvents.find((f) => f.event === 'message_done');
+    const parsed = ChatTurnEvent.parse(done);
+    if (parsed.event !== 'message_done') throw new Error('wrong frame');
+    expect(parsed.parts.map((p) => MessagePart.parse(p))).toHaveLength(2);
   });
 });
 

@@ -84,6 +84,40 @@ export const validVoiceSessionStartResponse = {
   transportToken: 'tok_short_lived_abc123',
 };
 
+/** One frame per ChatTurnEvent variant — the SSE wire union (contract 02 §1). */
+export const validChatTurnEvents = [
+  { event: 'thread', threadId: uuid(41) },
+  { event: 'part_delta', partIndex: 0, delta: 'Here is ' },
+  {
+    event: 'part',
+    part: {
+      type: 'library_citation',
+      resourceId: uuid(50),
+      title: 'Pricing Workbook',
+      snippet: 'Anchor the offer…',
+      locator: 'p.12',
+    },
+  },
+  {
+    event: 'message_done',
+    messageId: uuid(42),
+    parts: [
+      { type: 'text', text: 'Here is the short answer…' },
+      {
+        type: 'process_offer',
+        processKey: 'weekly_review',
+        label: 'Weekly Review',
+        modality: 'guided',
+      },
+    ],
+  },
+  { event: 'error', code: 'provider_error', message: 'upstream timeout' },
+  { event: 'spend_denied', remainingCredits: 3 },
+] as const;
+
+/** Invalid: unknown SSE event kind — the event union is closed at v1 (QA SF-2). */
+export const unknownChatTurnEvent = { event: 'typing_indicator', active: true };
+
 // ── 03 Usage Event ────────────────────────────────────────────────────────────
 export const validUsageEvent = {
   idempotencyKey: `trace:${uuid(80)}`,

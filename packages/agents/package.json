@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "THE BRAIN — pure, provider-agnostic AI agents (orchestrator, classifier, linters, coaching/cadence agents, interaction engine). Deps are EXACTLY @ciyp/shared + zod (enforced by dependency-lint). Populated by PRD-002a; scaffold in PRD-001a.",
+  "description": "THE BRAIN \u2014 pure, provider-agnostic AI agents (orchestrator, classifier, linters, coaching/cadence agents, interaction engine). Deps are EXACTLY @ciyp/shared + zod (enforced by dependency-lint). Populated by PRD-002a; scaffold in PRD-001a.",
   "main": "./src/index.ts",
   "module": "./src/index.ts",
   "types": "./src/index.ts",

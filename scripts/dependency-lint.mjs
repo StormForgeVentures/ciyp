@@ -13,22 +13,27 @@ import { join } from 'node:path';
 const root = new URL('..', import.meta.url).pathname;
 const failures = [];
 
+// All runtime-reachable dep maps count — optional/peer are real vectors too (QA SF-1).
+const RUNTIME_DEP_KEYS = ['dependencies', 'optionalDependencies', 'peerDependencies'];
+const runtimeDeps = (pkg) =>
+  RUNTIME_DEP_KEYS.flatMap((k) => Object.keys(pkg[k] ?? {})).sort();
+
 // ── Gate 1: agents purity ─────────────────────────────────────────────────────
 const agentsPkg = JSON.parse(readFileSync(join(root, 'packages/agents/package.json'), 'utf8'));
-const agentsDeps = Object.keys(agentsPkg.dependencies ?? {}).sort();
+const agentsDeps = runtimeDeps(agentsPkg);
 const allowed = ['@ciyp/shared', 'zod'];
 if (JSON.stringify(agentsDeps) !== JSON.stringify(allowed)) {
   failures.push(
-    `packages/agents dependencies must be exactly [${allowed.join(', ')}]; found [${agentsDeps.join(', ')}] (the brain stays pure — architecture §5.1)`,
+    `packages/agents runtime deps (deps ∪ optional ∪ peer) must be exactly [${allowed.join(', ')}]; found [${agentsDeps.join(', ')}] (the brain stays pure — architecture §5.1)`,
   );
 }
 
 // ── Gate 2: prompts zero runtime deps ─────────────────────────────────────────
 const promptsPkg = JSON.parse(readFileSync(join(root, 'packages/prompts/package.json'), 'utf8'));
-const promptsDeps = Object.keys(promptsPkg.dependencies ?? {});
+const promptsDeps = runtimeDeps(promptsPkg);
 if (promptsDeps.length > 0) {
   failures.push(
-    `packages/prompts must have zero runtime dependencies; found [${promptsDeps.join(', ')}]`,
+    `packages/prompts must have zero runtime deps (deps ∪ optional ∪ peer); found [${promptsDeps.join(', ')}]`,
   );
 }
 

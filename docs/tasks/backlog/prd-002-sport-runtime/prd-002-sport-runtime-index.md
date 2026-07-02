@@ -65,7 +65,7 @@ surfaces), PRD-004 (voice), and PRD-006 (agent studio).
 
 See sub-PRDs for per-feature decisions. Module-wide, from `docs/architecture.md` §5 + ADR-006:
 
-**Purity boundary.** `packages/agents` deps = `@ciyp/shared` + `zod` only; all LLM/DB access via the
+**Purity boundary.** `packages/agents` deps = `@stormforgeventures/ciyp-shared` + `zod` only; all LLM/DB access via the
 injected substrate. Tenant awareness exists ONLY at the `lib/sport/` assembly edge. A direct provider or
 Supabase import inside `packages/agents` is a Must-fix.
 
@@ -91,7 +91,7 @@ Trace rows are admin-only reads (RLS); trace payloads pass the redaction port be
 |------------|--------|--------|
 | `tenants`, per-tenant `app_config`, domain tables + RLS | PRD-001 (schema + migration) | Required |
 | Luminify seed (2nd tenant fixture included for AC-2/AC-3) | PRD-001 (seed) | Required |
-| `@ciyp/shared` contract types (zod) | PRD-001 (contract freeze) | Required |
+| `@stormforgeventures/ciyp-shared` contract types (zod) | PRD-001 (contract freeze) | Required |
 | `SpendAuthorizer` interface (authorize/settle/release shape) | PRD-007 (contract 04) | Required (interface only; stub impl created here) |
 | EL-OS source for ports | `/mnt/c/Repos/empowered-leader-os` (read-only) | Available |
 | sport-ai-sdk `sport-core`/`sport-server` packages | GitHub Packages (private) | Available |

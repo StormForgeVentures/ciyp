@@ -1,6 +1,6 @@
 # Contract 02 — Coaching API
 
-**Direction:** UI → engine · **Lives in:** `@ciyp/shared` · **Stability:** the `parts` union is FROZEN at v1.
+**Direction:** UI → engine · **Lives in:** `@stormforgeventures/ciyp-shared` · **Stability:** the `parts` union is FROZEN at v1.
 
 The thin client's core surface. Three operations: **chat/turn** (streamed via SSE), **check-in** (bounded
 cadence thread), and **voice session**. The heart is the `parts` discriminated union — **the same shape on

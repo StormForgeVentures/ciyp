@@ -79,7 +79,7 @@ Not applicable — Traditional lane (classification #12/#13; enforcement is dete
 | Dependency | Source | Status |
 |------------|--------|--------|
 | Materialized balance + wallet state | PRD-007a | Required |
-| Contract 04 schema in `@ciyp/shared` | PRD-001a | Required |
+| Contract 04 schema in `@stormforgeventures/ciyp-shared` | PRD-001a | Required |
 | Sport `SpendAuthorizer` port seam | PRD-002b | Required (this fills the stub) |
 | Valkey | PRD-002 infra | Available |
 | Heavy-path consumer (voice start + checkpoint re-check) | PRD-004b | Consumer |

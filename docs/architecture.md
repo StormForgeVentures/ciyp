@@ -112,7 +112,7 @@ ciyp-platform/
     ui-tokens/      # design tokens (consumed by BOTH repos — see ADR-004)
 ```
 
-`ciyp-template` (sibling) consumes a **published subset**: `@ciyp/shared` types + `@ciyp/ui-tokens`.
+`ciyp-template` (sibling) consumes a **published subset**: `@stormforgeventures/ciyp-shared` types + `@stormforgeventures/ciyp-ui-tokens`.
 It never imports `agents` or `prompts`. See ADR-004 for the distribution mechanism.
 
 ### 2.2 Stack — inherited from EL-OS, carried forward
@@ -267,7 +267,7 @@ frozen at v1. The member UI's renderer is a pure function of this union.
 
 The brain — orchestrator, classifier, coaching methods, cadence (`daily_checkin`/`weekly_checkpoint`/
 `monthly_rww`), interaction-engine, linters, utility — keeps EL-OS's hard purity rule: **deps =
-`@ciyp/shared` + `zod` only.** LLM access is via **injected ports** (`src/llm/{types,default}.ts`). The
+`@stormforgeventures/ciyp-shared` + `zod` only.** LLM access is via **injected ports** (`src/llm/{types,default}.ts`). The
 agents never know which provider, which tenant, or which DB they run against. This is what makes the
 brain reusable across shared and dedicated deployments unchanged.
 
@@ -537,14 +537,14 @@ strings) are what make the build *verifiable* and the wallet enforcement *testab
 
 ## 12. Shared-core package boundary (ADR-004)
 
-- The **member UI** (`ciyp-template`) consumes **`@ciyp/shared` types + `@ciyp/ui-tokens`** only.
+- The **member UI** (`ciyp-template`) consumes **`@stormforgeventures/ciyp-shared` types + `@stormforgeventures/ciyp-ui-tokens`** only.
 - The **engine** consumes the **full** `agents` + `prompts` + `shared` + `ui-tokens`.
-- `@ciyp/shared` is the **single source of truth for the cross-repo contracts** (§13): the zod schemas /
+- `@stormforgeventures/ciyp-shared` is the **single source of truth for the cross-repo contracts** (§13): the zod schemas /
   TS types in `contracts/` are *generated from / live in* `shared`, so the wire shape can't drift between
   engine and UI.
 
 Distribution mechanism (pnpm workspace vs private registry vs git subtree) is decided in **ADR-004**
-(recommendation: private npm registry-published `@ciyp/shared` + `@ciyp/ui-tokens`, versioned, because the
+(recommendation: private npm registry-published `@stormforgeventures/ciyp-shared` + `@stormforgeventures/ciyp-ui-tokens`, versioned, because the
 two repos are *not* co-located in one workspace and the UI must pin a known-good contract version).
 
 ---
@@ -552,7 +552,7 @@ two repos are *not* co-located in one workspace and the UI must pin a known-good
 ## 13. Cross-repo contracts (the wave-0 freeze)
 
 Six typed contracts pin the engine↔UI boundary before any parallel work fans out. Full specs in
-`contracts/`. Each is zod/TS, lives in `@ciyp/shared`, and is type-checked standalone.
+`contracts/`. Each is zod/TS, lives in `@stormforgeventures/ciyp-shared`, and is type-checked standalone.
 
 | # | Contract | Direction | Purpose |
 |---|---|---|---|
@@ -561,7 +561,7 @@ Six typed contracts pin the engine↔UI boundary before any parallel work fans o
 | 03 | **Usage Event** | runtime → ledger | instance, member, feature, model, in/out tokens, provider, cost, ts, idempotency_key (at-least-once + idempotent) |
 | 04 | **Spend Authorization** | runtime ↔ wallet | authorize → allow/deny + remaining |
 | 05 | **Entitlement** | platform → UI | what a member is entitled to (Stripe-checkout-derived) |
-| 06 | **Shared-core package API** | both | the surface `@ciyp/shared` + `@ciyp/ui-tokens` expose |
+| 06 | **Shared-core package API** | both | the surface `@stormforgeventures/ciyp-shared` + `@stormforgeventures/ciyp-ui-tokens` expose |
 
 **Contract-change discipline:** any change to a frozen contract mid-wave requires a `handoff/
 project-state.md` entry + a ping to affected agents. Merge conflicts at wave boundaries are almost always

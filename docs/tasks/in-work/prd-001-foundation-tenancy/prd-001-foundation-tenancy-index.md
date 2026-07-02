@@ -13,8 +13,8 @@ Stand up the build-once substrate every other module depends on: the pnpm/turbo 
 | In scope | Out of scope |
 |----------|--------------|
 | pnpm + turbo monorepo scaffold (apps/api, apps/voice, apps/web, packages/*) | Any feature logic inside the apps (later PRDs) |
-| `@ciyp/shared` zod schemas for contracts 01–06, incl. the frozen `parts` union | Contract *changes* (frozen at v1; change discipline per architecture §13) |
-| Private-registry publishing of `@ciyp/shared` + `@ciyp/ui-tokens` (ADR-004) | The member UI consuming them (ciyp-template repo) |
+| `@stormforgeventures/ciyp-shared` zod schemas for contracts 01–06, incl. the frozen `parts` union | Contract *changes* (frozen at v1; change discipline per architecture §13) |
+| Private-registry publishing of `@stormforgeventures/ciyp-shared` + `@stormforgeventures/ciyp-ui-tokens` (ADR-004) | The member UI consuming them (ciyp-template repo) |
 | Multi-tenant schema: tenants, per-tenant app_config, all domain tables tenant-scoped | EL-OS data migration/backfill (greenfield — no Kyle data exists here) |
 | Two-layer RLS + index plan shipped with the schema | Dedicated-tenant promotion tooling (ADR-001 seam only; runbook in PRD-008) |
 | Platform tables: wallets, ledgers, stripe_*, entitlements, tenant_integrations (schema only) | Wallet/connector/store behavior (PRD-005, PRD-007, PRD-008) |
@@ -24,7 +24,7 @@ Stand up the build-once substrate every other module depends on: the pnpm/turbo 
 
 | Sub-PRD | File | Scope (one line) |
 |---------|------|------------------|
-| 001a | `prd-001a-foundation-tenancy-monorepo-contracts.md` | Monorepo scaffold + `@ciyp/shared` contract schemas + private-registry publish |
+| 001a | `prd-001a-foundation-tenancy-monorepo-contracts.md` | Monorepo scaffold + `@stormforgeventures/ciyp-shared` contract schemas + private-registry publish |
 | 001b | `prd-001b-foundation-tenancy-schema-rls.md` | Multi-tenant Postgres schema, two-layer RLS, index plan, platform tables |
 | 001c | `prd-001c-foundation-tenancy-luminify-seed.md` | Idempotent Luminify seed with edge shapes + isolation-test fixture tenant |
 
@@ -77,7 +77,7 @@ RLS is the platform's primary data boundary: every tenant-scoped table carries `
 ## Success Metrics
 
 - Wave-0 exit: all four module ACs green, enabling parallel waves to start.
-- `ciyp-template` unblocked: `@ciyp/shared` + `@ciyp/ui-tokens` installable from the private registry at a pinned version.
+- `ciyp-template` unblocked: `@stormforgeventures/ciyp-shared` + `@stormforgeventures/ciyp-ui-tokens` installable from the private registry at a pinned version.
 - Zero Kyle-specific identifiers in schema or seed (grep-verifiable; success criterion 6 of the brief).
 
 ## Implementation Priority

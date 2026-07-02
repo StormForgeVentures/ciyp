@@ -1,10 +1,11 @@
-# Publishes @ciyp/shared + @ciyp/ui-tokens to GitHub Packages (ADR-004).
+# Publishes @stormforgeventures/ciyp-shared + @stormforgeventures/ciyp-ui-tokens to GitHub Packages (ADR-004).
 # Cadence: manual tagged releases during v1 (prd-001a Q-2). Trigger by pushing a tag
 # `shared-vX.Y.Z` (publishes both packages at their package.json versions).
 #
-# PREREQ (operator, one-time): the repo must live in the theamazingwolf GitHub org
-# (same as sport-ai-sdk) so GITHUB_TOKEN can publish restricted packages; ciyp-template
-# then installs with a read-scoped org token. No long-lived tokens in this repo.
+# PREREQ (operator, one-time): the repo lives in the StormForgeVentures GitHub org, so
+# packages publish under the @stormforgeventures scope (GitHub Packages requires scope =
+# repo owner); ciyp-template installs with a read-scoped org token. No long-lived tokens
+# in this repo. (sport-ai-sdk packages remain @theamazingwolf — separate org token.)
 name: Publish shared packages
 
 on:
@@ -36,12 +37,12 @@ jobs:
       - name: Verify (typecheck + build + test + purity gates)
         run: pnpm typecheck && pnpm build && pnpm test
 
-      - name: Publish @ciyp/shared
-        run: pnpm --filter @ciyp/shared publish --no-git-checks
+      - name: Publish @stormforgeventures/ciyp-shared
+        run: pnpm --filter @stormforgeventures/ciyp-shared publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish @ciyp/ui-tokens
-        run: pnpm --filter @ciyp/ui-tokens publish --no-git-checks
+      - name: Publish @stormforgeventures/ciyp-ui-tokens
+        run: pnpm --filter @stormforgeventures/ciyp-ui-tokens publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

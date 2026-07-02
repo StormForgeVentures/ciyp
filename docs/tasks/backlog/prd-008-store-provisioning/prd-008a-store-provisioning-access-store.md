@@ -102,7 +102,7 @@ Not applicable — Traditional lane (feature #14; no generation in the loop).
 | Dependency | Source | Status |
 |------------|--------|--------|
 | `member_subscriptions`, `stripe_webhook_events`, `tenant_tiers` | PRD-001b migration | Required |
-| Contract 05 zod schema | `@ciyp/shared` (PRD-001a) | Required |
+| Contract 05 zod schema | `@stormforgeventures/ciyp-shared` (PRD-001a) | Required |
 | Seed expired-entitlement member | PRD-001c | Required |
 | Session-start hook points (thread open / voice start) | PRD-003a / PRD-004b | Modified here (they call the gate) |
 | Tenant Stripe product/price objects | PRD-008b provisioning step 4 | Required |

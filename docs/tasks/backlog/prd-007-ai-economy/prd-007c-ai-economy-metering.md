@@ -106,7 +106,7 @@ Not applicable — Traditional lane (classification #13).
 | `ai_traces` cost/token/feature columns | PRD-002d | Required |
 | `usage_ledger`/`wallet_ledger` DDL + append-only grants | PRD-001b | Required |
 | Tenant markup config + materialization rule | PRD-007a | Required |
-| Contract 03 schema in `@ciyp/shared` | PRD-001a | Required |
+| Contract 03 schema in `@stormforgeventures/ciyp-shared` | PRD-001a | Required |
 | Seeded traces + ledger rows | PRD-001c | Required |
 | BullMQ/worker infra (outbox consumer) | PRD-002 infra | Available |
 

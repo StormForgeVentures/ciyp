@@ -1,6 +1,6 @@
 # Contract 01 — Instance Config
 
-**Direction:** platform → UI · **Lives in:** `@ciyp/shared` · **Stability:** frozen at v1, additive-only.
+**Direction:** platform → UI · **Lives in:** `@stormforgeventures/ciyp-shared` · **Stability:** frozen at v1, additive-only.
 
 The member UI is thin and instance-agnostic. At launch (and on config-version change) it fetches the
 **Instance Config** for its tenant: who the coach is, what archetypes/tiers/journeys exist, branding, the
@@ -52,7 +52,7 @@ export const Branding = z.object({
   coachDisplayName: z.string(),
   productName: z.string(),         // member-facing name of the pocket coach
   logoUrl: z.string().url().nullable(),
-  // token OVERRIDES only; base tokens come from @ciyp/ui-tokens
+  // token OVERRIDES only; base tokens come from @stormforgeventures/ciyp-ui-tokens
   themeTokens: z.record(z.string(), z.string()).default({}),
 });
 

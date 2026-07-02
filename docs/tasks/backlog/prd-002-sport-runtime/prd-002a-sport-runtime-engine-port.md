@@ -13,7 +13,7 @@ test suites come with it.
 
 ## Functional requirements
 
-1. `@ciyp/agents` dependencies are exactly `@ciyp/shared` + `zod`; no provider SDK, no Supabase, no Sport imports.
+1. `@ciyp/agents` dependencies are exactly `@stormforgeventures/ciyp-shared` + `zod`; no provider SDK, no Supabase, no Sport imports.
 2. All LLM-touching agents accept an injected `AgentSubstrate = { llm: LlmCaller; getModelSlot; traceAICall }`; unit tests run with mock substrates and no network.
 3. Ported components (from EL-OS `packages/agents/src`, same public surface via `index.ts`): supervisor classifier (fast slot, temperature 0, bounded tokens, zod-validated routing JSON with always-safe fallback), language-signal scan, the 4-linter chain in canonical order `voice → no_shame → playfulness → retention`, orchestrator turn callable, tool dispatcher, member-doc reference detector, process runner + deterministic goal-gate, cadence agents (daily / weekly / monthly bounded threads with forced finalize), interaction engine (`instruct / call_response / free / hold`), utility agents, plan-document artifact renderer + fidelity check.
 4. De-enum applied at the type level: `CodeProcessDefinition` keeps the `source: 'code' | 'authored'` seam; `agent_kind`, archetype, and tier values are **opaque tenant-config strings**, never TS enums or unions naming coach concepts. Platform-mechanic enums (interaction_mode, modality, output_type, fact tiers, etc.) stay.
@@ -26,7 +26,7 @@ test suites come with it.
 
 | # | Given / When / Then |
 |---|---------------------|
-| AC-1 | Given `packages/agents/package.json`, then its `dependencies` contain exactly `@ciyp/shared` and `zod`. |
+| AC-1 | Given `packages/agents/package.json`, then its `dependencies` contain exactly `@stormforgeventures/ciyp-shared` and `zod`. |
 | AC-2 | Given a mock substrate, when the classifier receives malformed model output, then it returns the documented safe-fallback route and the failure is passed to `traceAICall`. |
 | AC-3 | Given a drafted reply, when the linter chain runs, then linters execute in canonical order and each intervention is reported in the chain result (order asserted by test). |
 | AC-4 | Given a `CodeProcessDefinition` with `source: 'authored'` and valid shape, when the process runner executes it, then it runs identically to a `source: 'code'` definition (same runner, no branch on source except provenance). |
@@ -56,7 +56,7 @@ Not applicable — AI infrastructure (no user-facing surface pair).
 
 | Dependency | Source | Status |
 |------------|--------|--------|
-| `@ciyp/shared` types (ModelSlot union, parts union, contract schemas) | PRD-001 | Required |
+| `@stormforgeventures/ciyp-shared` types (ModelSlot union, parts union, contract schemas) | PRD-001 | Required |
 | EL-OS `packages/agents` + `packages/prompts` source | `/mnt/c/Repos/empowered-leader-os` (read-only) | Available |
 | Substrate implementations (real `llm`/`getModelSlot`/`traceAICall`) | prd-002b / prd-002c | Created there |
 

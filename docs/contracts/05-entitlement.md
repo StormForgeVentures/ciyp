@@ -1,6 +1,6 @@
 # Contract 05 — Entitlement
 
-**Direction:** platform → UI · **Lives in:** `@ciyp/shared` · **Stability:** frozen at v1, additive-only.
+**Direction:** platform → UI · **Lives in:** `@stormforgeventures/ciyp-shared` · **Stability:** frozen at v1, additive-only.
 
 What a member is entitled to, derived from **Stripe web checkout** (money flow a: Member → Coach, no native
 IAP). The UI gates access on this; the engine checks it at session start (it does **not** put entitlement on

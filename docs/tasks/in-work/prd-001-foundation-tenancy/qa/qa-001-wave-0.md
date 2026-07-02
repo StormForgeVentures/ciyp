@@ -20,7 +20,7 @@ test on the second frozen union) and four Notes.
 | Build | `pnpm build` | 0 | web `vite build` 73 modules; api/shared/ui-tokens tsc |
 | Test | `pnpm test` | 0 | shared 15/15, api 1/1, dependency-lint ✓ |
 | AC-1 literal | `pnpm -r typecheck && pnpm -r build` | 0 / 0 | every workspace green |
-| Index AC-2 | `pnpm --filter @ciyp/shared typecheck` | 0 | standalone; shared deps = `zod` only; no cross-package/apps imports |
+| Index AC-2 | `pnpm --filter @stormforgeventures/ciyp-shared typecheck` | 0 | standalone; shared deps = `zod` only; no cross-package/apps imports |
 | Boot | `PORT=8793 pnpm dev` + `curl /health` | 200 | `{"ok":true,"scaffold":{"agents":"0.0.0","prompts":"0.0.0","partsUnionLoaded":true}}`; unknown route → 404 |
 | Purity clean | `node scripts/dependency-lint.mjs` | 0 | agents purity + prompts zero-deps + no earendil |
 
@@ -51,7 +51,7 @@ test on the second frozen union) and four Notes.
 
 **SF-1 · Purity gate misses `optionalDependencies` / `peerDependencies` (proven bypass).**
 `scripts/dependency-lint.mjs:18` (`agents`) and `:28` (`prompts`) read **only** `pkg.dependencies`.
-AC-2/FR-4 require agents deps to be *exactly* `{@ciyp/shared, zod}` and "fail on any addition"; a disallowed
+AC-2/FR-4 require agents deps to be *exactly* `{@stormforgeventures/ciyp-shared, zod}` and "fail on any addition"; a disallowed
 **runtime** dependency declared under `optionalDependencies` (or `peerDependencies`) installs at runtime yet
 escapes the gate.
 Repro (planted then reverted, tree clean): added `"optionalDependencies": {"left-pad":"^1.3.0"}` to

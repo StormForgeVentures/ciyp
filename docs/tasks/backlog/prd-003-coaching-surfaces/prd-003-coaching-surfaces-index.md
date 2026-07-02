@@ -101,7 +101,7 @@ indefinite retention and are admin-only.
 |------------|--------|--------|
 | Multi-tenant schema, RLS, `parts` tables, Luminify seed | PRD-001 | Required |
 | Sport assembly + ports, slot config, cascade, eval harness | PRD-002 | Required |
-| Contract 02 (Coaching API) zod schemas in `@ciyp/shared` | PRD-001 / contracts freeze | Required |
+| Contract 02 (Coaching API) zod schemas in `@stormforgeventures/ciyp-shared` | PRD-001 / contracts freeze | Required |
 | Spend-authorization seam (contract 04) | PRD-007 (interface may be stubbed behind the port until wave merge) | Required |
 | Indexed seed library for citation ACs | PRD-005a (seed ingestion) | Required |
 | sport-ai-sdk #28 (inline guard hook) | SDK backlog | Mid-build; post-hoc guard path ships without it |

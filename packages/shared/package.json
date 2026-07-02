@@ -1,5 +1,5 @@
 {
-  "name": "@ciyp/shared",
+  "name": "@stormforgeventures/ciyp-shared",
   "version": "0.1.0",
   "description": "CIYP shared zod schemas, TypeScript types, and platform enums — the single source of truth for cross-repo contracts 01–06 (ADR-004).",
   "license": "UNLICENSED",
@@ -31,7 +31,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/theamazingwolf/ciyp-platform.git",
+    "url": "https://github.com/StormForgeVentures/ciyp.git",
     "directory": "packages/shared"
   },
   "scripts": {

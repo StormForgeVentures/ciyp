@@ -7,7 +7,7 @@ import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { AGENTS_SCAFFOLD_VERSION } from '@ciyp/agents';
 import { PROMPTS_SCAFFOLD_VERSION } from '@ciyp/prompts';
-import { MessagePart } from '@ciyp/shared';
+import { MessagePart } from '@stormforgeventures/ciyp-shared';
 
 const app = new Hono();
 

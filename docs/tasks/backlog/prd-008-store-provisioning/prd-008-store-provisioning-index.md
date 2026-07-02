@@ -54,7 +54,7 @@ their sub-PRD. These are the rows `generate-tasks` lifts into `handoff/acceptanc
 | AC-2 | Given the Luminify seed's expired-entitlement member, when that member opens a chat thread or voice session, then the engine refuses at session start with the entitlement-expired state (distinct from `spend_denied`). |
 | AC-3 | Given a clean database and a completed intake document, when the provisioning script runs for a new tenant, then all 6 runbook steps complete and the script exits green. |
 | AC-4 | Given a freshly provisioned tenant, when the eval golden set runs against its config (runbook step 5), then all metrics meet their targets before the script reports go-live-ready. |
-| AC-5 | Given a freshly provisioned tenant, when `GET` Instance Config (contract 01) is called for it, then the response validates against the `@ciyp/shared` schema and contains zero identifiers from any other tenant. |
+| AC-5 | Given a freshly provisioned tenant, when `GET` Instance Config (contract 01) is called for it, then the response validates against the `@stormforgeventures/ciyp-shared` schema and contains zero identifiers from any other tenant. |
 
 ## Core UX per Surface
 
@@ -101,7 +101,7 @@ step may assume "the shared DB" beyond what `TenantContext` provides.
 | Wallet creation + markup config (runbook step 4) | PRD-007a | Required |
 | Eval golden-set runner (runbook step 5) | PRD-002d | Required |
 | Instance Config emission (runbook step 6, contract 01) | PRD-006b | Required |
-| Entitlement contract schema | `@ciyp/shared` (PRD-001a, contract 05) | Required |
+| Entitlement contract schema | `@stormforgeventures/ciyp-shared` (PRD-001a, contract 05) | Required |
 
 ## Non-Goals
 

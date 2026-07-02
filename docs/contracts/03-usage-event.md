@@ -1,6 +1,6 @@
 # Contract 03 — Usage Event
 
-**Direction:** runtime → ledger (internal to the engine) · **Lives in:** `@ciyp/shared`
+**Direction:** runtime → ledger (internal to the engine) · **Lives in:** `@stormforgeventures/ciyp-shared`
 **Delivery:** at-least-once + **idempotent** (dedupe on `idempotencyKey`). · **Stability:** frozen at v1, additive-only.
 
 Emitted by the AI runtime for **every** billable AI decision (sourced from the extended `ai_traces` row,

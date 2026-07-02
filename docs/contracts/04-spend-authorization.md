@@ -1,6 +1,6 @@
 # Contract 04 — Spend Authorization
 
-**Direction:** runtime ↔ wallet (internal to the engine) · **Lives in:** `@ciyp/shared`
+**Direction:** runtime ↔ wallet (internal to the engine) · **Lives in:** `@stormforgeventures/ciyp-shared`
 **Stability:** frozen at v1, additive-only. · **Backing design:** ADR-003 §4.
 
 The seam that authorizes every AI turn against the wallet **without** a per-turn round-trip on cheap calls,

@@ -84,7 +84,7 @@ Supabase Auth required on every route; role gates via `admin_role` (platform enu
 | `prompt_versions` / `eval_snapshots` tables | PRD-002d | Required |
 | `tenant_integrations` rows (MCP toggles read these) | PRD-005c | Required |
 | Definition hydration (defineRole/defineProcess read path) | PRD-002b · sport-ai-sdk issues #25–#27 (interim seam until resolved) | Required |
-| Instance Config contract schema (contract 01) | PRD-001a (`@ciyp/shared`) | Required |
+| Instance Config contract schema (contract 01) | PRD-001a (`@stormforgeventures/ciyp-shared`) | Required |
 
 ## Non-Goals
 

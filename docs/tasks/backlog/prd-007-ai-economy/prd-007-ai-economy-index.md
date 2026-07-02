@@ -110,7 +110,7 @@ within the engine; never exposed to clients). Rate-limit top-up creation per ten
 | Seed wallet/ledger rows + near-zero-wallet member edge shape | PRD-001c seed | Required |
 | `ai_traces` cost columns (`provider`, `model`, tokens, `cost_micros`, `feature`) | PRD-002d | Required |
 | Sport `SpendAuthorizer` port shape | ADR-006 / PRD-002b (stub consumer) | Modified here (real implementation) |
-| Contract 03 / 04 zod schemas in `@ciyp/shared` | PRD-001a | Required |
+| Contract 03 / 04 zod schemas in `@stormforgeventures/ciyp-shared` | PRD-001a | Required |
 | Valkey (cheap-path balance cache) | PRD-002 infra | Available |
 | Heavy-check consumer (voice session start / checkpoint) | PRD-004b | Consumer (builds against 007b) |
 

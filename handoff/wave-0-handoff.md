@@ -4,7 +4,7 @@
 
 - Monorepo runs green end-to-end: `pnpm install && pnpm typecheck && pnpm build && pnpm test` all exit 0
   (7 workspaces; EL-OS shape). Merged to `main` (614b2ca).
-- **Contracts 01–06 are frozen as code**: zod schemas in `@ciyp/shared` (`src/contracts/*`), closed `parts`
+- **Contracts 01–06 are frozen as code**: zod schemas in `@stormforgeventures/ciyp-shared` (`src/contracts/*`), closed `parts`
   union proven by test, 15-test fixture suite green, export surface matches contract 06's manifest.
 - **Purity gates enforce architecture**: `scripts/dependency-lint.mjs` (in `pnpm test`) — agents deps
   exactly shared+zod, prompts zero-deps, no direct Pi-engine imports. Verified by planted violations.
@@ -16,7 +16,7 @@
 
 ## Flagged / blocked (operator asks for Tim)
 
-1. **GitHub repo** (blocks AC-…-10 + unblocks ciyp-template): create `theamazingwolf/ciyp-platform`,
+1. **GitHub repo** (blocks AC-…-10 + unblocks ciyp-template): create `StormForgeVentures/ciyp`,
    push `main`, tag `shared-v0.1.0` → publish workflow does the rest. Also needed before PRD-002 can
    `pnpm add @theamazingwolf/sport-{core,server}` (org token in `.npmrc`/env).
 2. **Local Supabase** (blocks wave 1 schema work): Docker + `supabase` CLI on this machine.

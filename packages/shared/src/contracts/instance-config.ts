@@ -43,7 +43,7 @@ export const Branding = z.object({
   /** Member-facing name of the pocket coach. */
   productName: z.string(),
   logoUrl: z.string().url().nullable(),
-  /** Token OVERRIDES only; base tokens come from @ciyp/ui-tokens (contract 06). */
+  /** Token OVERRIDES only; base tokens come from @stormforgeventures/ciyp-ui-tokens (contract 06). */
   themeTokens: z.record(z.string(), z.string()).default({}),
 });
 export type Branding = z.infer<typeof Branding>;

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Dependency lint — the purity gates (prd-001a FR-4, ACs 2–3; ADR-006 constraint).
- *   1. packages/agents dependencies are EXACTLY { @ciyp/shared, zod }.
+ *   1. packages/agents dependencies are EXACTLY { @stormforgeventures/ciyp-shared, zod }.
  *   2. packages/prompts has ZERO runtime dependencies.
  *   3. No source file in any workspace imports @earendil-works/* (everything goes
  *      through sport-core — sport-ai-sdk ADR-001 / this repo's ADR-006).
@@ -21,7 +21,7 @@ const runtimeDeps = (pkg) =>
 // ── Gate 1: agents purity ─────────────────────────────────────────────────────
 const agentsPkg = JSON.parse(readFileSync(join(root, 'packages/agents/package.json'), 'utf8'));
 const agentsDeps = runtimeDeps(agentsPkg);
-const allowed = ['@ciyp/shared', 'zod'];
+const allowed = ['@stormforgeventures/ciyp-shared', 'zod'];
 if (JSON.stringify(agentsDeps) !== JSON.stringify(allowed)) {
   failures.push(
     `packages/agents runtime deps (deps ∪ optional ∪ peer) must be exactly [${allowed.join(', ')}]; found [${agentsDeps.join(', ')}] (the brain stays pure — architecture §5.1)`,

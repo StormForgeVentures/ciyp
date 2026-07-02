@@ -57,7 +57,7 @@ Each verifiable by an agent. These become `AC-008-store-provisioning-NN` rows at
 | AC-5 | Given a run killed after step 3, when `provision` re-runs with the same intake, then steps 1–3 no-op (no duplicate tenant, config, or library rows) and steps 4–6 complete. |
 | AC-6 | Given a tenant whose config fails an eval-golden-set target (fixture with a sabotaged directive), when step 5 runs, then the script exits non-green and does not emit Instance Config. |
 | AC-7 | Given a completed provisioning run, when the seeded eval + retrieval queries run scoped to the NEW tenant, then zero rows from any other tenant appear in results (isolation sweep). |
-| AC-8 | Given a completed run, when Instance Config (contract 01) is fetched for the tenant, then it validates against the `@ciyp/shared` schema and every branded string traces to the intake. |
+| AC-8 | Given a completed run, when Instance Config (contract 01) is fetched for the tenant, then it validates against the `@stormforgeventures/ciyp-shared` schema and every branded string traces to the intake. |
 
 ## Data requirements
 

@@ -1,5 +1,5 @@
 /**
- * @ciyp/ui-tokens — base design tokens (contract 06).
+ * @stormforgeventures/ciyp-ui-tokens — base design tokens (contract 06).
  * Instance-agnostic neutrals: the platform ships the structure; each tenant's brand arrives
  * as overrides via InstanceConfig.branding.themeTokens (contract 01). The UI composes
  * base ⊕ overrides. The Designer refines values during the design phase; keys are the API.

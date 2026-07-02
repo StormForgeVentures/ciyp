@@ -87,7 +87,7 @@ Key behaviors: every entity row exposes History (versioned edits); the pending-v
 ### Write contract (UI → AI-read tables)
 
 - Writers: the admin endpoints above only — no other service writes these tables.
-- Validation: zod schemas shared with the runtime (`@ciyp/shared`); slot values checked against the allowed-provider list; fragments length-bounded and sanitized.
+- Validation: zod schemas shared with the runtime (`@stormforgeventures/ciyp-shared`); slot values checked against the allowed-provider list; fragments length-bounded and sanitized.
 - Idempotency: standard row updates keyed by pk (uuid); version bumps are transactional with the row write (one transaction: row + `prompt_versions` + pending-version state).
 - Failure mode: any step of the write pipeline failing rolls back the transaction; the UI surfaces the field-level or pipeline error; caches are only invalidated after commit.
 

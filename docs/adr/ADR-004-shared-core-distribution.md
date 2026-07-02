@@ -7,8 +7,8 @@
 CIYP is **two repos** (locked decision #1): `ciyp-platform` (engine) and `ciyp-template` (member UI). They
 share code, but asymmetrically:
 
-- The **member UI** needs only **`@ciyp/shared`** (types + zod schemas for the 6 contracts) and
-  **`@ciyp/ui-tokens`** (design tokens). It must **never** import `agents` or `prompts` — it runs zero AI,
+- The **member UI** needs only **`@stormforgeventures/ciyp-shared`** (types + zod schemas for the 6 contracts) and
+  **`@stormforgeventures/ciyp-ui-tokens`** (design tokens). It must **never** import `agents` or `prompts` — it runs zero AI,
   and pulling the brain into the client would defeat the thin-client design and leak prompts/IP onto devices.
 - The **engine** needs the **full** internal packages: `agents`, `prompts`, `shared`, `ui-tokens`.
 
@@ -22,17 +22,17 @@ MVP vs production stages).
 
 ## Decision
 
-**Publish `@ciyp/shared` and `@ciyp/ui-tokens` as versioned packages to a private npm registry; both repos
+**Publish `@stormforgeventures/ciyp-shared` and `@stormforgeventures/ciyp-ui-tokens` as versioned packages to a private npm registry; both repos
 consume pinned versions. `agents` and `prompts` stay internal to `ciyp-platform` (workspace-internal, never
 published).**
 
 - Inside `ciyp-platform`, all four packages are **pnpm workspace** members (`packages/*`); the engine
   consumes them via `workspace:*`. `agents`/`prompts` never leave the workspace.
-- `@ciyp/shared` and `@ciyp/ui-tokens` are additionally **built and published** to a private registry
+- `@stormforgeventures/ciyp-shared` and `@stormforgeventures/ciyp-ui-tokens` are additionally **built and published** to a private registry
   (e.g. GitHub Packages / npm private scope) on a version bump.
-- `ciyp-template` adds them as **pinned dependencies** (`"@ciyp/shared": "1.4.0"`), not a range, so a UI
+- `ciyp-template` adds them as **pinned dependencies** (`"@stormforgeventures/ciyp-shared": "1.4.0"`), not a range, so a UI
   build is reproducible and immune to surprise contract changes.
-- `@ciyp/shared` is the **single source of truth** for the 6 cross-repo contracts: the zod schemas live
+- `@stormforgeventures/ciyp-shared` is the **single source of truth** for the 6 cross-repo contracts: the zod schemas live
   there; TS types are inferred from them; the engine validates against the same schemas it publishes.
 
 ## Consequences
@@ -46,7 +46,7 @@ published).**
 - Standard tooling (npm semver, lockfiles, `npm audit`) — no exotic submodule/subtree workflow.
 
 **Negative / accepted.**
-- **Two-step releases:** a contract change = publish `@ciyp/shared`, then bump the UI dep. Slight ceremony.
+- **Two-step releases:** a contract change = publish `@stormforgeventures/ciyp-shared`, then bump the UI dep. Slight ceremony.
   Accepted; it's the price of pinning and the reason drift can't happen.
 - **Private registry to operate** (auth, CI publish step). Accepted; low overhead, standard.
 - Version skew is *possible* if the UI lags far behind — mitigated by additive-only contract evolution
@@ -65,9 +65,9 @@ published).**
 
 ## Constraint for downstream
 
-- The member UI imports **only** `@ciyp/shared` + `@ciyp/ui-tokens`. Importing `agents`/`prompts` in the UI
+- The member UI imports **only** `@stormforgeventures/ciyp-shared` + `@stormforgeventures/ciyp-ui-tokens`. Importing `agents`/`prompts` in the UI
   is a must-fix.
 - Contract changes are **additive / deprecate-don't-break**; a breaking change is a major version bump +
   a coordinated UI upgrade + a `handoff/project-state.md` entry.
 - The UI pins **exact** versions of the shared packages (no ranges).
-- `@ciyp/shared` is the canonical home of the 6 contract schemas; nothing redefines a contract type locally.
+- `@stormforgeventures/ciyp-shared` is the canonical home of the 6 contract schemas; nothing redefines a contract type locally.

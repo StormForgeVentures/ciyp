@@ -4,11 +4,13 @@
 -- Establishes the multi-tenant control-plane primitives every later migration
 -- depends on:
 --   * extensions (pgvector @ 1024-dim, pgcrypto, pg_trgm)
---   * GUC-scoped identity readers  current_tenant_id() / current_member_id()
---     (the backend sets app.tenant_id / app.member_id per request; RLS reads them)
+--   * GUC-scoped identity readers  current_tenant_id() / current_member_id() /
+--     current_context() (the backend sets app.tenant_id / app.member_id /
+--     app.context per request; RLS reads them)
 --   * two-layer RLS installers: enable_tenant_rls() (permissive tenant fence) +
---     enable_member_rls() (RESTRICTIVE member fence — ANDs with the tenant fence,
---     a no-op in coach/admin context where app.member_id is unset)
+--     enable_member_rls() (RESTRICTIVE member fence — ANDs with the tenant fence;
+--     fails CLOSED — coach-wide visibility requires an EXPLICIT app.context='coach',
+--     a member context with app.member_id unset sees ZERO member rows)
 --   * append-only guard trigger fn + grant helpers
 --   * platform-MECHANIC enums only (ADR-002 §2). ZERO coach-IP enums: the
 --     donor-era archetype / enrollment_tier / method-agent_kind / stage-name
@@ -28,15 +30,18 @@ create extension if not exists pg_trgm;     -- trigram assist for text search
 
 -- ---------------------------------------------------------------------------
 -- GUC-scoped identity readers (the RLS predicates)
---   nullif(...,'')::uuid → unset/empty GUC resolves to NULL (fail-closed to zero
---   rows for the tenant fence; member fence treats NULL as "coach context").
+--   btrim + nullif(...,'') → unset / empty / whitespace-only GUC all resolve to
+--   NULL (fail-closed to zero rows for the tenant fence). btrim closes the L1
+--   whitespace-abort vector: a '   ' GUC no longer raises invalid-uuid and aborts
+--   the transaction — it reads as unset. Coach-wide visibility on member tables is
+--   an EXPLICIT opt-in via app.context='coach' (see current_context / member fence).
 -- ---------------------------------------------------------------------------
 create or replace function public.current_tenant_id()
 returns uuid
 language sql
 stable
 as $$
-  select nullif(current_setting('app.tenant_id', true), '')::uuid
+  select nullif(btrim(current_setting('app.tenant_id', true)), '')::uuid
 $$;
 
 create or replace function public.current_member_id()
@@ -44,7 +49,18 @@ returns uuid
 language sql
 stable
 as $$
-  select nullif(current_setting('app.member_id', true), '')::uuid
+  select nullif(btrim(current_setting('app.member_id', true)), '')::uuid
+$$;
+
+-- Session context: 'coach' | 'member' | NULL(unset). Coach context is the ONLY
+-- way to see tenant-wide member rows; anything else is member-scoped and fails
+-- closed. btrim/nullif so whitespace/empty read as unset (→ member-scoped).
+create or replace function public.current_context()
+returns text
+language sql
+stable
+as $$
+  select nullif(btrim(current_setting('app.context', true)), '')
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -61,9 +77,15 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- Append-only guard: rejects UPDATE/DELETE on the ledgers. Fires for EVERY role
--- (incl. service_role / postgres) — corrections are compensating entries only
--- (architecture §14). Attach with a BEFORE UPDATE OR DELETE trigger.
+-- Append-only guard: rejects UPDATE/DELETE (row-level) AND TRUNCATE (statement-
+-- level) on the ledgers. Fires for EVERY role (incl. service_role / postgres) —
+-- corrections are compensating entries only (architecture §14). TG_OP and
+-- TG_TABLE_NAME are populated for a BEFORE TRUNCATE ... FOR EACH STATEMENT trigger,
+-- so the same function guards both. Attach BOTH a BEFORE UPDATE OR DELETE FOR EACH
+-- ROW trigger and a BEFORE TRUNCATE FOR EACH STATEMENT trigger. TRUNCATE is
+-- tenant-blind and RLS-exempt, so this trigger (plus REVOKE TRUNCATE, migration
+-- 20260702121200) is the ONLY thing standing between the app role and a
+-- platform-wide wipe of the money trail.
 -- ---------------------------------------------------------------------------
 create or replace function public.reject_mutation()
 returns trigger
@@ -97,9 +119,14 @@ end;
 $$;
 
 -- RESTRICTIVE member fence (defense-in-depth second layer). ANDs with the tenant
--- fence. When app.member_id is unset (coach/admin context) current_member_id() is
--- NULL and the clause is a no-op → coach sees all tenant rows; a member context
--- sees only rows whose member column matches.
+-- fence. FAILS CLOSED (H1 remediation): tenant-wide member visibility requires an
+-- EXPLICIT coach context (app.context='coach'). In any other context the row must
+-- match a NON-NULL current_member_id(), so a member session that sets app.tenant_id
+-- but forgets app.member_id sees ZERO member rows instead of the whole tenant.
+--   * coach context (app.context='coach')  → all tenant rows (tenant fence still applies)
+--   * member context + app.member_id set    → own rows only
+--   * member context + app.member_id unset  → ZERO rows (fail closed)
+--   * context unset (default)               → member-scoped (fail closed, not coach)
 create or replace function public.enable_member_rls(p_schema text, p_table text, p_member_col text)
 returns void
 language plpgsql
@@ -107,8 +134,10 @@ as $$
 begin
   execute format(
     'create policy %I on %I.%I as restrictive for all to authenticated '
-    || 'using (public.current_member_id() is null or %I = public.current_member_id()) '
-    || 'with check (public.current_member_id() is null or %I = public.current_member_id())',
+    || 'using (public.current_context() = ''coach'' '
+    || '       or (public.current_member_id() is not null and %I = public.current_member_id())) '
+    || 'with check (public.current_context() = ''coach'' '
+    || '       or (public.current_member_id() is not null and %I = public.current_member_id()))',
     p_table || '_member_isolation', p_schema, p_table, p_member_col, p_member_col);
 end;
 $$;

@@ -96,6 +96,8 @@ defense in exactly its failure mode.
 unset context is member-scoped (0 rows). Update tests that codified the fail-open no-op.
 **Date:** 2026-07-02
 
+---
+
 ## 2026-07-02 — Sport runtime (feature/sport-runtime, wave 2, task 002 §2-4)
 
 ### [generalizable] (role: developer) ESLint flat-config `files` globs need the linted file's cwd to match the config
@@ -124,3 +126,30 @@ MATCH the passed filename or you get "No matching configuration found". Both are
 that fn). Grepped the installed dist, imported from the subpath. `composeCascade`,
 `createSlotResolver`, `scanForHardcodedModels`, `HardcodedModelError` ARE on the barrel and
 map almost 1:1 to 002c. The scope-resolver doc literally names "CIYP's SET LOCAL shape".
+
+---
+
+### apps/api rejected real Supabase session tokens as 401 (role: developer) [generalizable]
+**Symptom:** Local JWT verification (jose, HS256 + the `supabase status` JWT_SECRET) passed for self-minted tokens but every REAL browser sign-in token was rejected 401; the console showed "Something went wrong — unauthenticated".
+**Root cause:** Current Supabase (CLI with the new sb_publishable_/sb_secret_ key system) issues session access tokens as **ES256**, signed by the project's JWT **signing keys** (with a `kid`) — NOT HS256 with the legacy shared secret. Decoding a real token's header showed `{"alg":"ES256","kid":...}`.
+**Fix:** Verify against the published JWKS (`createRemoteJWKSet(${SUPABASE_URL}/auth/v1/.well-known/jwks.json)`, algorithms ES256/RS256, issuer-pinned). Switched integration tests from minted HS256 tokens to real GoTrue password-grant tokens so the verify path is exactly production's.
+**Lesson:** Design against the dependency's SHIPPED token, not its documented/legacy contract — decode an actual token header before choosing a verification scheme; Supabase local defaults to ES256+JWKS now, not HS256.
+**Date:** 2026-07-02
+
+---
+
+### Append-only audit table + RESTRICT FK made shared-DB test fixtures non-deletable (role: developer) [generalizable]
+**Symptom:** PM flagged that test-created tenants persisted in the shared local DB and tripped the other tracks' seed-verify "exactly 1 tenant" invariant; teardown was impossible because the audit rows (append-only, postgres-proof reject trigger) blocked DELETE, and the tenant FK was ON DELETE RESTRICT against them.
+**Root cause:** I mirrored the money-ledger append-only discipline (reject_mutation on UPDATE/DELETE/TRUNCATE for ALL roles incl. postgres) onto an admin ACTION audit log. That makes rows genuinely un-removable by anyone → no legitimate lifecycle/teardown path.
+**Fix:** Kept app-role append-only via GRANT (select+insert only → the coach/app can never delete/edit) + an UPDATE guard (rows immutable) + a TRUNCATE guard (no bulk wipe), but dropped the DELETE guard so the trusted system role can do row-targeted deletes for offboarding/teardown. Tests now tear down namespaced fixtures in afterAll. Reserved full postgres-proofing for the money ledgers.
+**Lesson:** Calibrate immutability to the table's threat model — money ledgers get full postgres-proofing; an action audit log gets app-role-append-only (grant) + row-immutability, keeping a system maintenance path. On a SHARED dev DB, always namespace fixtures AND tear them down; don't assume you're the only tenant.
+**Date:** 2026-07-02
+
+---
+
+### Vitest ran the Playwright E2E spec and errored ("test() not expected here") (role: developer) [generalizable]
+**Symptom:** `pnpm test` (turbo) failed only in the web package: vitest globbed `e2e/*.spec.ts` and tried to execute a Playwright test.
+**Root cause:** Default vitest include (`**/*.{test,spec}.*`) matches Playwright spec files; the two runners share the `.spec.ts` extension.
+**Fix:** Added `apps/web/vitest.config.ts` scoping `test.include` to `src/**` and excluding `e2e/**`; Playwright runs via a separate `pnpm e2e` script.
+**Lesson:** When a package has both vitest unit tests and Playwright E2E, scope vitest's include to src/ (or exclude e2e/) so the runners don't collide on `.spec.ts`.
+**Date:** 2026-07-02

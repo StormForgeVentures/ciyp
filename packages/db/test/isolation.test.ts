@@ -78,17 +78,26 @@ async function seedTenantGraph(c: pg.PoolClient, t: string, m1: string, m2: stri
   }
 }
 
-/** Run fn as the non-bypassrls app role with the given GUC scope; always reset. */
-async function asApp<T>(scope: { tenant?: string; member?: string }, fn: (c: pg.PoolClient) => Promise<T>): Promise<T> {
+/**
+ * Run fn as the non-bypassrls app role with the given GUC scope; always reset.
+ * app.context selects the fail-closed member fence path (H1): 'coach' sees all
+ * tenant member rows; 'member' (or unset) requires a matching non-null member GUC.
+ */
+async function asApp<T>(
+  scope: { tenant?: string; member?: string; context?: 'coach' | 'member' },
+  fn: (c: pg.PoolClient) => Promise<T>,
+): Promise<T> {
   return withClient(pool, async (c) => {
     try {
       await c.query(`set role authenticated`);
       await c.query(`select set_config('app.tenant_id', $1, false)`, [scope.tenant ?? '']);
       await c.query(`select set_config('app.member_id', $1, false)`, [scope.member ?? '']);
+      await c.query(`select set_config('app.context', $1, false)`, [scope.context ?? '']);
       return await fn(c);
     } finally {
       await c.query(`select set_config('app.tenant_id', '', false)`);
       await c.query(`select set_config('app.member_id', '', false)`);
+      await c.query(`select set_config('app.context', '', false)`);
       await c.query(`reset role`);
     }
   });
@@ -137,7 +146,7 @@ describe('two-layer RLS isolation', () => {
   });
 
   it('AC-3: tenant-A GUC returns only tenant-A rows and zero tenant-B rows on every fixture table', async () => {
-    await asApp({ tenant: TA }, async (c) => {
+    await asApp({ tenant: TA, context: 'coach' }, async (c) => {
       for (const table of ALL_FIXTURE_TABLES) {
         const aRows = await countIn(c, table, TA);
         const bRows = await countIn(c, table, TB);
@@ -148,7 +157,7 @@ describe('two-layer RLS isolation', () => {
   });
 
   it('AC-3 (reverse): tenant-B GUC returns only tenant-B rows and zero tenant-A rows', async () => {
-    await asApp({ tenant: TB }, async (c) => {
+    await asApp({ tenant: TB, context: 'coach' }, async (c) => {
       for (const table of ALL_FIXTURE_TABLES) {
         expect(await countIn(c, table, TA), `${table}: tenant-A rows leaked under tenant-B GUC`).toBe(0);
         expect(await countIn(c, table, TB)).toBeGreaterThan(0);
@@ -157,7 +166,7 @@ describe('two-layer RLS isolation', () => {
   });
 
   it('AC-4: member fence — member-1 context sees only member-1 rows within the tenant', async () => {
-    await asApp({ tenant: TA, member: A_M1 }, async (c) => {
+    await asApp({ tenant: TA, member: A_M1, context: 'member' }, async (c) => {
       for (const [table, col] of MEMBER_FENCED) {
         const mine = Number((await c.query(`select count(*)::int n from ${table} where ${col} = $1`, [A_M1])).rows[0].n);
         const other = Number((await c.query(`select count(*)::int n from ${table} where ${col} = $1`, [A_M2])).rows[0].n);
@@ -168,19 +177,40 @@ describe('two-layer RLS isolation', () => {
   });
 
   it('AC-4: member fence is independent — switching member within the tenant changes visibility', async () => {
-    const m1Facts = await asApp({ tenant: TA, member: A_M1 }, async (c) =>
+    const m1Facts = await asApp({ tenant: TA, member: A_M1, context: 'member' }, async (c) =>
       Number((await c.query(`select count(*)::int n from member_facts`)).rows[0].n),
     );
-    const m2Facts = await asApp({ tenant: TA, member: A_M2 }, async (c) =>
+    const m2Facts = await asApp({ tenant: TA, member: A_M2, context: 'member' }, async (c) =>
       Number((await c.query(`select count(*)::int n from member_facts`)).rows[0].n),
     );
-    const coachFacts = await asApp({ tenant: TA }, async (c) =>
+    const coachFacts = await asApp({ tenant: TA, context: 'coach' }, async (c) =>
       Number((await c.query(`select count(*)::int n from member_facts`)).rows[0].n),
     );
-    // Each member sees exactly their own fact; coach context (member unset) sees both.
+    // Each member sees exactly their own fact; explicit coach context sees both.
     expect(m1Facts).toBe(1);
     expect(m2Facts).toBe(1);
     expect(coachFacts).toBe(2);
+  });
+
+  // H1 remediation: the member fence fails CLOSED. A member-context session that
+  // sets the tenant GUC but omits app.member_id must see ZERO member rows — not the
+  // whole tenant (the pre-fix fail-open behaviour that promoted a member to coach).
+  it('H1: member context with member GUC unset is fail-closed (zero member rows)', async () => {
+    await asApp({ tenant: TA, context: 'member' }, async (c) => {
+      for (const [table] of MEMBER_FENCED) {
+        const n = Number((await c.query(`select count(*)::int n from ${table} where tenant_id = $1`, [TA])).rows[0].n);
+        expect(n, `${table}: member context w/o member GUC LEAKED tenant rows (fail-open)`).toBe(0);
+      }
+    });
+  });
+
+  // The inverse guard: an UNSET context is treated as member-scoped (fail-closed),
+  // NOT as coach — coach-wide visibility must be an explicit opt-in.
+  it('H1: unset context (no coach opt-in) is member-scoped, not coach-wide', async () => {
+    await asApp({ tenant: TA }, async (c) => {
+      const n = Number((await c.query(`select count(*)::int n from member_facts where tenant_id = $1`, [TA])).rows[0].n);
+      expect(n, 'unset context defaulted to coach-wide visibility (should fail closed)').toBe(0);
+    });
   });
 
   it('AC-2/AC-5: unset tenant GUC is fail-closed (zero rows), never a leak', async () => {
@@ -193,7 +223,7 @@ describe('two-layer RLS isolation', () => {
   });
 
   it('AC-5: append-only ledgers reject UPDATE/DELETE even inside a tenant scope', async () => {
-    await asApp({ tenant: TA }, async (c) => {
+    await asApp({ tenant: TA, context: 'coach' }, async (c) => {
       await c.query('begin');
       try {
         await c.query(
@@ -201,6 +231,44 @@ describe('two-layer RLS isolation', () => {
           [TA],
         );
         await expect(c.query(`update usage_ledger set priced_cost_micros = 1 where idempotency_key='iso-key-1'`)).rejects.toThrow();
+        await expect(c.query(`delete from usage_ledger where idempotency_key='iso-key-1'`)).rejects.toThrow();
+      } finally {
+        await c.query('rollback');
+      }
+    });
+  });
+
+  // C1 remediation: TRUNCATE is RLS-exempt and skips the row-level append-only guard.
+  // The app role must NOT be able to wipe the money ledgers — both by REVOKE (no
+  // TRUNCATE privilege → permission denied) and by the BEFORE TRUNCATE statement guard.
+  it('C1: append-only money ledgers reject TRUNCATE as the app role', async () => {
+    for (const ledger of ['wallet_ledger', 'usage_ledger']) {
+      await asApp({ tenant: TA, context: 'coach' }, async (c) => {
+        await c.query('begin');
+        try {
+          await expect(c.query(`truncate ${ledger}`), `${ledger}: TRUNCATE was NOT rejected`).rejects.toThrow();
+        } finally {
+          await c.query('rollback');
+        }
+      });
+    }
+  });
+
+  // M1 remediation: idempotency uniqueness is per-tenant, so the same key inserts
+  // independently under two different tenants (tenant A cannot collide-block tenant B).
+  it('M1: idempotency_key is unique per-tenant, not global', async () => {
+    await withClient(pool, async (c) => {
+      // Run as postgres (bypassrls) so the WITH CHECK tenant fence does not mask the
+      // uniqueness semantics under test; the constraint is what we are proving.
+      await c.query('begin');
+      try {
+        await c.query(`insert into usage_ledger (tenant_id, feature, idempotency_key) values ($1,'chat','dup-key')`, [TA]);
+        // Same key, DIFFERENT tenant → must succeed (per-tenant scope).
+        await c.query(`insert into usage_ledger (tenant_id, feature, idempotency_key) values ($1,'chat','dup-key')`, [TB]);
+        // Same key, SAME tenant → must violate the unique constraint.
+        await expect(
+          c.query(`insert into usage_ledger (tenant_id, feature, idempotency_key) values ($1,'chat','dup-key')`, [TA]),
+        ).rejects.toThrow();
       } finally {
         await c.query('rollback');
       }

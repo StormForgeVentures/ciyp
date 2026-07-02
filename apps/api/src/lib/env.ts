@@ -35,9 +35,8 @@ export const env = {
       ? require_('DATABASE_URL')
       : optional_('DATABASE_URL', 'postgresql://postgres:postgres@127.0.0.1:55322/postgres'),
   supabaseUrl: (): string => optional_('SUPABASE_URL', 'http://127.0.0.1:55321'),
+  supabaseAnonKey: (): string => require_('SUPABASE_ANON_KEY'),
   supabaseServiceRoleKey: (): string => require_('SUPABASE_SERVICE_ROLE_KEY'),
-  /** HS256 secret Supabase Auth signs session JWTs with; apps/api verifies with it. */
-  supabaseJwtSecret: (): string => require_('SUPABASE_JWT_SECRET'),
   allowedOrigin: (): string => optional_('API_ALLOWED_ORIGIN', 'http://127.0.0.1:5173'),
   port: (): number => Number(optional_('PORT', '8787')),
 };
@@ -46,6 +45,6 @@ export const env = {
 export function validateEnv(): void {
   env.databaseUrl();
   env.supabaseUrl();
+  env.supabaseAnonKey();
   env.supabaseServiceRoleKey();
-  env.supabaseJwtSecret();
 }

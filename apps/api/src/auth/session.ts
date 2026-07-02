@@ -1,10 +1,11 @@
 /**
  * Session verification. apps/web signs in via Supabase Auth and sends the access token as
- * `Authorization: Bearer <jwt>`. We verify the JWT locally (HS256, the project JWT secret) —
- * no per-request round-trip to GoTrue — and extract the identity claims. A forged or expired
- * token throws; the middleware turns that into 401.
+ * `Authorization: Bearer <jwt>`. Supabase issues ES256 tokens signed by the project's JWT signing
+ * keys, so we verify against the published JWKS (`/auth/v1/.well-known/jwks.json`) — the shipped
+ * contract, not the legacy shared HS256 secret. The JWKS is fetched once and cached by jose. A
+ * forged/expired token, or one signed by a different project, throws → the middleware returns 401.
  */
-import { jwtVerify } from 'jose';
+import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from 'jose';
 import { env } from '../lib/env.js';
 
 export interface VerifiedSession {
@@ -13,14 +14,17 @@ export interface VerifiedSession {
   email: string;
 }
 
-let secretKey: Uint8Array | null = null;
-function key(): Uint8Array {
-  if (!secretKey) secretKey = new TextEncoder().encode(env.supabaseJwtSecret());
-  return secretKey;
+let jwks: JWTVerifyGetKey | null = null;
+function keySet(): JWTVerifyGetKey {
+  if (!jwks) jwks = createRemoteJWKSet(new URL(`${env.supabaseUrl()}/auth/v1/.well-known/jwks.json`));
+  return jwks;
 }
 
 export async function verifySession(token: string): Promise<VerifiedSession> {
-  const { payload } = await jwtVerify(token, key(), { algorithms: ['HS256'] });
+  const { payload } = await jwtVerify(token, keySet(), {
+    algorithms: ['ES256', 'RS256'],
+    issuer: `${env.supabaseUrl()}/auth/v1`,
+  });
   const authUserId = typeof payload.sub === 'string' ? payload.sub : '';
   const email = typeof payload.email === 'string' ? payload.email : '';
   if (!authUserId) throw new Error('token missing sub');

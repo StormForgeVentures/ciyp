@@ -55,11 +55,16 @@ create table if not exists admin_audit_log (
 create index if not exists admin_audit_log_tenant_created_idx
   on admin_audit_log (tenant_id, created_at);
 
--- Append-only guards (mirror the money ledgers, migration 121000): row-level reject on
--- UPDATE/DELETE + statement-level reject on TRUNCATE. An audit trail that can be edited or
--- wiped is not an audit trail.
-create trigger admin_audit_log_append_only
-  before update or delete on admin_audit_log
+-- Append-only for the APP role, enforced primarily by the grant below (SELECT + INSERT only —
+-- `authenticated` holds no UPDATE/DELETE/TRUNCATE privilege, and post-hardening default privileges
+-- deny TRUNCATE on new tables). On top of that: an UPDATE guard makes rows IMMUTABLE for every
+-- role (an audit entry is never edited in place), and a TRUNCATE guard blocks a bulk wipe by any
+-- role. Targeted DELETE by the system role (`postgres`) is intentionally permitted — unlike the
+-- money ledgers (121000, fully postgres-proof), this action log must support legitimate lifecycle
+-- maintenance (tenant offboarding, test-fixture teardown). The app/coach can never tamper with or
+-- remove an entry; only trusted platform maintenance can, and only row-targeted (never a wipe).
+create trigger admin_audit_log_no_update
+  before update on admin_audit_log
   for each row execute function public.reject_mutation();
 create trigger admin_audit_log_no_truncate
   before truncate on admin_audit_log

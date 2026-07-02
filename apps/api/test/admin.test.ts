@@ -1,25 +1,26 @@
 /**
- * Admin surface integration tests (PRD-006a) against the LIVE local DB + real seeded identities.
- * Written adversarially: every auth/role/tenant boundary is probed with the wrong principal.
+ * Admin surface integration tests (PRD-006a) against the LIVE local DB + real Supabase Auth.
+ * Tokens are real GoTrue password grants (ES256/JWKS) — the exact verification path production
+ * uses. Written adversarially: every auth/role/tenant boundary is probed with the wrong principal.
  *
- * Ids come from the seed; fabricated fixtures are namespaced (test-006a-*) and created via
- * on-conflict upserts so the suite is idempotent across reruns WITHOUT deleting rows (audit rows
- * are append-only + RESTRICT the tenant, so test tenants are intentionally non-deletable).
+ * Fabricated fixtures are namespaced (test-006a-*) and created via on-conflict upserts so the
+ * suite is idempotent across reruns WITHOUT deleting rows (audit rows are append-only + RESTRICT
+ * the tenant, so test tenants are intentionally non-deletable).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { app } from '../src/index.js';
-import { withSystemTx, closePool } from '../src/lib/pool.js';
+import { getPool, withSystemTx, closePool } from '../src/lib/pool.js';
 import { PLATFORM_DEFAULT_MODEL_ROUTING } from '../src/routes/defaults.js';
-import { authHeader, loadSeedIds, mintToken, type SeedIds } from './helpers.js';
+import { authHeader, ensureAuthUser, getToken, loadSeedIds, type SeedIds } from './helpers.js';
 
 let ids: SeedIds;
 let ownerTok: string;
 let teamTok: string;
 let superTok: string;
+let susOwnerTok: string;
+let susOwnerSub: string;
 
-// Fabricated suspended-tenant fixture (AC-5). Fixed ids → idempotent upsert.
 const SUS_TENANT = '00000000-0006-4a00-8000-0000000006a5';
-const SUS_OWNER_SUB = '00000000-0006-4a00-8000-0000000006a6';
 const TEST_TENANT_SLUG = 'test-006a-created';
 
 async function req(path: string, init: RequestInit = {}): Promise<Response> {
@@ -28,11 +29,12 @@ async function req(path: string, init: RequestInit = {}): Promise<Response> {
 
 beforeAll(async () => {
   ids = await loadSeedIds();
-  ownerTok = await mintToken(ids.ownerSub, 'owner@luminify.example');
-  teamTok = await mintToken(ids.teamSub, 'team@luminify.example');
-  superTok = await mintToken(ids.superSub, 'super@luminify.example');
+  ownerTok = await getToken('owner@luminify.example');
+  teamTok = await getToken('team@luminify.example');
+  superTok = await getToken('super@luminify.example');
 
-  // AC-5 fixture: a paused tenant with its own owner admin.
+  // AC-5 fixture: a paused tenant with its own (real GoTrue) owner.
+  susOwnerSub = await ensureAuthUser('owner@suspended.example');
   await withSystemTx(async (c) => {
     await c.query(
       `insert into tenants (id, slug, display_name, status) values ($1,'test-006a-suspended','Suspended Co','paused')
@@ -47,28 +49,43 @@ beforeAll(async () => {
       `insert into admins (tenant_id, auth_user_id, email, display_name, role)
        values ($1,$2,'owner@suspended.example','Suspended Owner','owner')
        on conflict (tenant_id, email) do update set auth_user_id = excluded.auth_user_id`,
-      [SUS_TENANT, SUS_OWNER_SUB],
+      [SUS_TENANT, susOwnerSub],
     );
   });
+  susOwnerTok = await getToken('owner@suspended.example');
 }, 30_000);
 
+// Tear down every fixture so the shared local DB is left as we found it (the seed-verify
+// "exactly 1 tenant" invariant is global across the parallel wave-2 tracks). Audit rows are
+// RESTRICT-linked to the tenant, so delete them first (system-role targeted delete is permitted),
+// then the tenants (cascades admins + app_config).
 afterAll(async () => {
-  await closePool();
+  try {
+    await withSystemTx(async (c) => {
+      const created = await c.query<{ id: string }>(`select id from tenants where slug = $1`, [
+        TEST_TENANT_SLUG,
+      ]);
+      const testTenantIds = [SUS_TENANT, ...created.rows.map((r) => r.id)];
+      await c.query(`delete from admin_audit_log where tenant_id = any($1::uuid[])`, [testTenantIds]);
+      await c.query(`delete from tenants where id = any($1::uuid[])`, [testTenantIds]);
+    });
+  } finally {
+    await closePool();
+  }
 });
 
 describe('AC-6 — authentication fence', () => {
   it('rejects a request with no token (401)', async () => {
     expect((await req('/admin/me')).status).toBe(401);
   });
-  it('rejects a forged/garbage token (401)', async () => {
-    const res = await req('/admin/me', { headers: authHeader('not.a.jwt') });
-    expect(res.status).toBe(401);
+  it('rejects a malformed token (401)', async () => {
+    expect((await req('/admin/me', { headers: authHeader('not.a.jwt') })).status).toBe(401);
   });
-  it('rejects a token signed with the wrong secret (401)', async () => {
-    // Valid shape, wrong signature.
-    const bad =
-      'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4Iiwicm9sZSI6ImF1dGhlbnRpY2F0ZWQifQ.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
-    expect((await req('/admin/me', { headers: authHeader(bad) })).status).toBe(401);
+  it('rejects a well-formed but wrongly-signed token (401)', async () => {
+    const forged =
+      'eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ4Iiwicm9sZSI6ImF1dGhlbnRpY2F0ZWQifQ.' +
+      'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+    expect((await req('/admin/me', { headers: authHeader(forged) })).status).toBe(401);
   });
 });
 
@@ -125,7 +142,6 @@ describe('AC-3 — superadmin tenant management', () => {
       headers: { ...authHeader(superTok), 'content-type': 'application/json' },
       body: JSON.stringify({ slug: TEST_TENANT_SLUG, displayName: 'Test 006a Created' }),
     });
-    // 201 first run, 409 on rerun — both prove the create path; assert the end state either way.
     expect([201, 409]).toContain(res.status);
 
     const list = (await (await req('/admin/tenants', { headers: authHeader(superTok) })).json()) as {
@@ -162,8 +178,7 @@ describe('AC-1 — cross-tenant isolation (a forged acting-tenant header is igno
     expect(body.tenant.slug).toBe('luminify');
   });
 
-  it('owner cannot manage another tenant\'s team via a forged header (scoped to own tenant)', async () => {
-    // The forged header is ignored → team list is Luminify's, never the suspended tenant's.
+  it('owner cannot read another tenant\'s team via a forged header (scoped to own tenant)', async () => {
     const res = await req('/admin/team', {
       headers: { ...authHeader(ownerTok), 'x-acting-tenant': SUS_TENANT },
     });
@@ -176,18 +191,17 @@ describe('AC-1 — cross-tenant isolation (a forged acting-tenant header is igno
 
 describe('AC-4 — superadmin-switched mutation is audit-logged', () => {
   it('a switched superadmin add-member writes an audit row (operator id + target tenant + action)', async () => {
-    const memberEmail = 'audited-member@test006a.example';
     const post = await req('/admin/team', {
       method: 'POST',
       headers: { ...authHeader(superTok), 'x-acting-tenant': SUS_TENANT, 'content-type': 'application/json' },
-      body: JSON.stringify({ email: memberEmail, displayName: 'Audited Member' }),
+      body: JSON.stringify({ email: 'audited-member@test006a.example', displayName: 'Audited Member' }),
     });
     expect([201, 409]).toContain(post.status);
 
     const audit = await withSystemTx((c) =>
       c
-        .query<{ actor_user_id: string; acting_as_superadmin: boolean; action: string }>(
-          `select actor_user_id, acting_as_superadmin, action
+        .query<{ actor_user_id: string; acting_as_superadmin: boolean }>(
+          `select actor_user_id, acting_as_superadmin
              from admin_audit_log
             where tenant_id = $1 and action = 'team.add_member'
             order by created_at desc limit 1`,
@@ -201,9 +215,29 @@ describe('AC-4 — superadmin-switched mutation is audit-logged', () => {
   });
 });
 
+describe('audit log immutability (app role)', () => {
+  it('the app role cannot delete, edit, or truncate audit entries (append-only preserved)', async () => {
+    const client = await getPool().connect();
+    async function asAppExpectReject(sql: string): Promise<void> {
+      await client.query('begin');
+      await client.query('set local role authenticated');
+      await client.query(`select set_config('app.tenant_id', $1, true)`, [SUS_TENANT]);
+      await client.query(`select set_config('app.context', 'coach', true)`);
+      await expect(client.query(sql)).rejects.toThrow();
+      await client.query('rollback');
+    }
+    try {
+      await asAppExpectReject(`delete from admin_audit_log`);
+      await asAppExpectReject(`update admin_audit_log set action = 'x'`);
+      await asAppExpectReject(`truncate admin_audit_log`);
+    } finally {
+      client.release();
+    }
+  });
+});
+
 describe('AC-5 — suspended tenant', () => {
   it('a suspended tenant\'s owner authenticates but sees the suspended status', async () => {
-    const susOwnerTok = await mintToken(SUS_OWNER_SUB, 'owner@suspended.example');
     const res = await req('/admin/me', { headers: authHeader(susOwnerTok) });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { admin: { tenantStatus: string } };
@@ -211,7 +245,6 @@ describe('AC-5 — suspended tenant', () => {
   });
 
   it('write APIs return 403 for the suspended tenant\'s owner', async () => {
-    const susOwnerTok = await mintToken(SUS_OWNER_SUB, 'owner@suspended.example');
     const res = await req('/admin/team', {
       method: 'POST',
       headers: { ...authHeader(susOwnerTok), 'content-type': 'application/json' },

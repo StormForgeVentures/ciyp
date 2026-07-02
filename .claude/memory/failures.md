@@ -29,3 +29,28 @@ Format per entry:
 **Fix:** `docker exec -i <container> psql ...` for any stdin-fed heredoc/pipe.
 **Lesson:** Always `-i` on `docker exec` when feeding SQL/stdin.
 **Date:** 2026-07-02
+
+---
+
+### [generalizable] (role: developer) Supabase default privileges silently grant TRUNCATE to app roles
+**When:** Any append-only / money table on Supabase where migrations only GRANT.
+**Symptom:** `authenticated`/`anon`/`service_role` hold TRUNCATE (+REFERENCES/TRIGGER) on
+every table your migrations create — from `postgres`'s default ACL on schema public
+(`anon=Dxtm/postgres`). TRUNCATE is RLS-exempt AND skips BEFORE UPDATE/DELETE guards, so
+append-only + no-UPDATE/DELETE-grant is NOT enough. Verify with `pg_default_acl` +
+`information_schema.role_table_grants`, not by reading the migration.
+**Fix:** REVOKE truncate/references/trigger on all tables from app roles + `alter default
+privileges for role postgres ... revoke` (future tables) + a BEFORE TRUNCATE FOR EACH
+STATEMENT guard trigger (reject_mutation works as-is; TG_OP/TG_TABLE_NAME are populated).
+**Date:** 2026-07-02
+
+### [generalizable] (role: developer) RESTRICTIVE member fence with `col IS NULL OR ...` fails OPEN
+**When:** Two-layer RLS where a member GUC scopes a second fence.
+**Symptom:** `using (current_member_id() IS NULL OR col = current_member_id())` gives
+full-tenant visibility when the member GUC is unset — a member session that forgets
+`set app.member_id` reads the whole tenant. The "defense-in-depth" layer provides zero
+defense in exactly its failure mode.
+**Fix:** Fail closed via an explicit context GUC: `current_context()='coach' OR
+(current_member_id() IS NOT NULL AND col = current_member_id())`. Coach-wide is an opt-in;
+unset context is member-scoped (0 rows). Update tests that codified the fail-open no-op.
+**Date:** 2026-07-02

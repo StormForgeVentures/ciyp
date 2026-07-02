@@ -1,0 +1,70 @@
+# --- dependencies & package managers ---
+node_modules/
+.pnpm-store/
+
+# --- env & secrets (NEVER commit; templates go in *.example) ---
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+
+# --- build outputs & caches ---
+dist/
+build/
+out/
+.turbo/
+*.tsbuildinfo
+.cache/
+coverage/
+
+# --- Python (apps/voice) ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# --- Supabase local ---
+supabase/.branches/
+supabase/.temp/
+
+# --- Expo / web tooling (if ever co-located) ---
+.expo/
+.vite/
+
+# --- logs & OS/editor noise ---
+*.log
+logs/
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# --- ops-sensitive local files (coach PII intakes live OUTSIDE the repo; belt & suspenders) ---
+ops/intake/
+*.intake.json
+
+# --- test/eval artifacts ---
+playwright-report/
+test-results/
+
+# cadre-generated (agent IP — regenerate with `cadre deploy`, don't commit)
+.claude/agents/
+.claude/skills/
+.claude/references/
+.cursor/rules/pm.mdc
+.cursor/rules/software-architect.mdc
+.cursor/rules/ai-architect.mdc
+.cursor/rules/brand-strategist.mdc
+.cursor/rules/copywriter.mdc
+.cursor/rules/designer.mdc
+.cursor/rules/developer.mdc
+.cursor/rules/qa-reviewer.mdc
+.cursor/rules/security-reviewer.mdc
+AGENTS.md
+.opencode/agents/
+opencode.json
+.cadre-manifest.json

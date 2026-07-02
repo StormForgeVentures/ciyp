@@ -39,6 +39,18 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      # pnpm ignores an _authToken line in the committed project .npmrc (anti-leak), so write
+      # GitHub Packages auth to the USER ~/.npmrc. SPORT_PACKAGES_TOKEN is a cross-org
+      # read:packages PAT covering BOTH @theamazingwolf (sport-*) and @stormforgeventures;
+      # falls back to GITHUB_TOKEN (StormForgeVentures only) so non-sport installs still work.
+      - name: Configure GitHub Packages auth
+        env:
+          SPORT_PACKAGES_TOKEN: ${{ secrets.SPORT_PACKAGES_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TOKEN="${SPORT_PACKAGES_TOKEN:-$GITHUB_TOKEN}"
+          echo "//npm.pkg.github.com/:_authToken=${TOKEN}" >> ~/.npmrc
+
       - name: Install
         run: pnpm install --frozen-lockfile
 

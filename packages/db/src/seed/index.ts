@@ -7,7 +7,7 @@ import { makePool, withClient } from '../lib/pg.js';
 import { seedUuid } from '../lib/uuid.js';
 import { chunkDocument } from '../lib/chunk.js';
 import { embedDocuments, toVectorLiteral, voyageTokensSpent, EMBED_MODEL } from '../lib/voyage.js';
-import { LUMINIFY, MODEL_ROUTING, BRANDING, ARCHETYPES, TIERS, PROCESS_DEFINITIONS } from '../content/config.js';
+import { LUMINIFY, MODEL_ROUTING, ENGINE_CONFIG, BRANDING, ARCHETYPES, TIERS, PROCESS_DEFINITIONS } from '../content/config.js';
 import { CORPUS } from '../content/corpus.js';
 import {
   MEMBER_SPECS,
@@ -33,9 +33,9 @@ async function seedTenant(c: Client): Promise<void> {
   );
   await q(
     c,
-    `insert into app_config (tenant_id, model_routing, branding, prompt_set_version, member_billing_mode)
-     values ($1,$2,$3,'v1','absorbed') on conflict (tenant_id) do nothing`,
-    [TENANT_ID, JSON.stringify(MODEL_ROUTING), JSON.stringify(BRANDING)],
+    `insert into app_config (tenant_id, model_routing, engine_config, branding, prompt_set_version, member_billing_mode)
+     values ($1,$2,$3,$4,'v1','absorbed') on conflict (tenant_id) do nothing`,
+    [TENANT_ID, JSON.stringify(MODEL_ROUTING), JSON.stringify(ENGINE_CONFIG), JSON.stringify(BRANDING)],
   );
   await q(
     c,

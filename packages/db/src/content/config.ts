@@ -28,6 +28,27 @@ export const MODEL_ROUTING = {
   tts: { provider: 'fish-audio', voice_id: 'fish-en-default-warm-01', model: 'speech-1.6' },
 } as const;
 
+// Per-tenant ENGINE knobs (wave-1 engine-port handoff) — consumed by the pure brain,
+// NOT model slots. Stored in app_config.engine_config (see migration 20260702121100).
+//
+// lightnessWideningLeans: archetype-lean keys whose members get +1 lightness cap
+//   (linters/playfulness.ts). Aligned to the seeded ARCHETYPES keys; provisional (OQ-2 —
+//   Tim tunes which archetype widens at provisioning). 'connector' = relational/warm
+//   register, the natural fit for a touch more playfulness.
+// memberDocCues: the tenant cue set for the deterministic doc-reference detector
+//   (orchestrator/doc-reference.ts). RegExp stored JSONB-safe as {pattern, flags}; the
+//   runtime compiles `new RegExp(pattern, flags)`. `kind` is an opaque ReadMemberDocKind.
+//   Guard `(?:my|your|the|that)\s+(?:own\s+)?` keeps generic mentions from firing a read.
+const OWN = String.raw`(?:my|your|the|that)\s+(?:own\s+)?`;
+export const ENGINE_CONFIG = {
+  lightnessWideningLeans: ['connector'],
+  memberDocCues: [
+    { kind: 'plan', pattern: `${OWN}plan`, flags: 'i' },
+    { kind: 'reflection', pattern: `${OWN}(?:reflections?|journal(?:\\s+entr(?:y|ies))?)`, flags: 'i' },
+    { kind: 'member_note', pattern: `${OWN}(?:notes?|saved\\s+notes?)`, flags: 'i' },
+  ],
+} as const;
+
 export const BRANDING = {
   primary_color: '#4C6EF5',
   accent_color: '#12B886',

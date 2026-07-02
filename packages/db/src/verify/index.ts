@@ -39,6 +39,34 @@ async function main(): Promise<void> {
         check('tts.voice_id present (Fish-audio persona slot)', !!routing.tts?.voice_id, JSON.stringify(routing.tts));
       }
 
+      // ── Engine-config knobs (wave-1 engine-port handoff) ───────────────
+      const eng = await one(`select engine_config from app_config limit 1`);
+      const engine = eng?.engine_config as
+        | { lightnessWideningLeans?: string[]; memberDocCues?: { kind?: string; pattern?: string; flags?: string }[] }
+        | undefined;
+      const archetypeKeys = (await c.query(`select key from tenant_archetypes`)).rows.map((r) => (r as { key: string }).key);
+      const leans = engine?.lightnessWideningLeans ?? [];
+      check('engine_config.lightnessWideningLeans is non-empty', leans.length > 0, JSON.stringify(engine?.lightnessWideningLeans));
+      check(
+        'every lightnessWideningLean is a seeded archetype key',
+        leans.length > 0 && leans.every((l) => archetypeKeys.includes(l)),
+        `leans=${JSON.stringify(leans)} archetypes=${JSON.stringify(archetypeKeys)}`,
+      );
+      const cues = engine?.memberDocCues ?? [];
+      check('engine_config.memberDocCues is non-empty', cues.length > 0, `count=${cues.length}`);
+      const cuesValid =
+        cues.length > 0 &&
+        cues.every((cue) => {
+          if (!cue.kind || !cue.pattern) return false;
+          try {
+            new RegExp(cue.pattern, cue.flags ?? '');
+            return true;
+          } catch {
+            return false;
+          }
+        });
+      check('every memberDocCue has {kind, compilable pattern, flags}', cuesValid, JSON.stringify(cues));
+
       const arche = await one(`select count(*)::int n, count(*) filter (where length(trim(prompt_fragment))>0)::int nonempty from tenant_archetypes`);
       check('3–4 archetypes, all with non-empty prompt_fragment', num(arche.n) >= 3 && num(arche.n) <= 4 && num(arche.n) === num(arche.nonempty), JSON.stringify(arche));
       const tiers = await one(`select count(*)::int n from tenant_tiers`);

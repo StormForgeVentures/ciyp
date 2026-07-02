@@ -469,3 +469,45 @@ body {
 select.input {
   cursor: pointer;
 }
+
+/* ── Narrow viewports ──────────────────────────────────────────────────────────
+   Desktop-first, data-dense admin (design brief), but degrade cleanly below a tablet
+   width: the dark sidebar becomes a wrapping top bar so content is never clipped. */
+@media (max-width: 720px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-space-2);
+    padding: var(--space-space-3);
+  }
+  .sidebar-brand {
+    padding: 0;
+    margin-right: var(--space-space-3);
+  }
+  .nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    flex: 1 1 100%;
+    gap: 4px;
+  }
+  .nav-item {
+    width: auto;
+    min-height: 36px;
+  }
+  .sidebar-foot {
+    border-top: 0;
+    padding-top: 0;
+    flex-direction: row;
+    align-items: center;
+    margin-left: auto;
+    gap: var(--space-space-2);
+  }
+  .user-card {
+    display: none;
+  }
+}

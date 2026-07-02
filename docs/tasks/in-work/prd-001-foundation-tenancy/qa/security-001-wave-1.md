@@ -132,3 +132,74 @@ Proven: an `idempotency_key` inserted for tenant A blocks a *different* tenant f
 
 ## Single worst exploit path
 Backend runs as `authenticated`. A SQL-injection (or confused-deputy raw query) anywhere in `apps/api` executes `TRUNCATE usage_ledger, wallet_ledger CASCADE` — not restricted by RLS (TRUNCATE is tenant-blind) and not caught by the `BEFORE UPDATE/DELETE` append-only guard — wiping every coach's prepaid-credit ledger platform-wide and zeroing all materialized balances. The append-only money guarantee is silently false today (C1).
+
+---
+
+## Re-verification (fix pass)
+
+**Auditor:** security-reviewer (adversarial re-test) · **Date:** 2026-07-02
+**Scope:** DELTA only — fix commits `e2120fa 59cf557 056e53d 5c833a8 eda963d d8b2cef f707eab 1f508b2` on top of reviewed `9df52ed`, worktree `/home/twolf/repos/ciyp-wt-schema-seed` (`feature/schema-seed`).
+**Method:** FRESH `supabase db reset` (12 migrations, incl. new `20260702121100_app_config_engine_config` + `20260702121200_privilege_hardening`) + `pnpm seed`, then live adversarial probes as `authenticated`/`anon`/`service_role` against the COMMITTED migration state (not leftover DB state). All destructive probes in rolled-back transactions. Dev's pasted output was NOT trusted — every claim reproduced. Committed suite: **11/11 isolation tests pass**.
+
+### RE-VERIFICATION VERDICT: MERGE-SAFE
+Critical + both merge-blocking Highs are closed and proven closed live. All 3 Mediums closed. L1 closed. No new finding introduced by the fixes. One informational hardening note (default-priv pin is role-scoped) and one forward-routed control (the new `app.context` GUC folds into H2's apps/api remit).
+
+| Finding | Severity | Verdict | Evidence |
+|---|---|---|---|
+| C1 — ledger TRUNCATE bypass | Critical | **CLOSED** | REVOKE + guard, both proven |
+| H1 — member fence fail-open | High | **CLOSED** | fails closed; write-path holds |
+| H2 — asserted-not-bound GUC | High | **DEFERRED (agree)** | not closable in schema |
+| M1 — global idempotency key | Medium | **CLOSED** | per-tenant unique proven |
+| M2 — anon over-privileged | Medium | **CLOSED** | anon = zero privs on public |
+| M3 — global stripe event_id | Medium | **CLOSED** | `(tenant_id,event_id)`; no seed corruption |
+| L1 — whitespace GUC abort | Low | **CLOSED** | btrim → null → 0 rows, txn survives |
+| L2 — tenant-regex ReDoS | Low | **FORWARD-ROUTED (agree)** | data-only here; runtime bound owed by engine/apps/api |
+
+---
+
+### C1 — TRUNCATE bypass → **CLOSED** (both fences independently proven)
+- **Fence (a) REVOKE:** `has_table_privilege` returns FALSE for TRUNCATE on `wallet_ledger`/`usage_ledger` for all of `anon`/`authenticated`/`service_role`. Live `truncate wallet_ledger` / `usage_ledger` → `ERROR: permission denied` as **authenticated, anon, AND service_role** (service_role is bypassrls but not owner and now holds no TRUNCATE priv). Grants on the ledgers reduced to `authenticated: INSERT, SELECT` only; anon/service_role hold none.
+- **Fence (b) BEFORE TRUNCATE guard:** with the grant *re-added* (`grant truncate … to authenticated`), `truncate wallet_ledger` → `ERROR: append-only table wallet_ledger: TRUNCATE rejected` (guard fires, not permission-denied). `truncate usage_ledger CASCADE` (the ledgers are FK-linked) → guard fires on `usage_ledger` too. Both ledgers carry a `*_no_truncate` `BEFORE TRUNCATE FOR EACH STATEMENT` trigger; `reject_mutation()` handles `TG_OP='TRUNCATE'`.
+- **Generalized close:** whole-schema sweep — **no** public table leaves `TRUNCATE/REFERENCES/TRIGGER/MAINTAIN` to any app role (`wallets, entitlements, tenant_integrations, ai_traces, members, app_config` all `has_table_privilege TRUNCATE = false`).
+- **Future-table pin:** a table created by `postgres` post-hardening grants **nothing** to anon/authenticated/service_role (`alter default privileges for role postgres` verified via a rolled-back `create table` probe).
+- **Belt:** ledgers owned by `postgres`; `authenticated ALTER TABLE … DISABLE TRIGGER wallet_ledger_no_truncate` → `must be owner`.
+
+### H1 — member fence fail-open → **CLOSED** (now fails closed; write-path intact)
+New `current_context()` reader + predicate `current_context()='coach' OR (current_member_id() IS NOT NULL AND col=current_member_id())` on all 16 member-fenced tables. Proven live:
+- (a) member context + member GUC **unset** → `members=0, member_facts=0, chat_messages=0` (was: whole tenant — the fail-open is gone).
+- (b) member context + member GUC set → own only (`members=1`, own facts only, `facts-not-mine=0`).
+- (c) coach context → full in-tenant (`members=5, member_facts=31`).
+- (e) **unset** context (default) → member-scoped/fail-closed (`members=0`), NOT coach-wide.
+- **Write path (WITH CHECK regression):** member M1 INSERT attributed to M2 → `new row violates … member_facts_member_isolation`; INSERT for a different tenant → RLS violation; own-row INSERT → succeeds. Member-level write isolation holds.
+
+### H1 adversarial (context-forge) → **NOT a new finding; folds into H2**
+Probe (d): a session that sets `app.member_id=<M1>` **and** `app.context='coach'` sees all 5 members — i.e. whoever can assert `app.context='coach'` gets tenant-wide member visibility. At the DB layer the `authenticated` role can trivially set it (same as `app.tenant_id`). This is **not a new escalation** and **not merge-blocking**, because:
+1. It is the member-layer instance of the already-High **H2** (tenancy/identity is *asserted* on the connection, not cryptographically bound). `app.context` is a third backend-asserted GUC alongside `app.tenant_id`/`app.member_id`.
+2. The fix strictly **improves** the failure direction: pre-fix a leak needed an **omission** (forget one `set app.member_id` → whole tenant); post-fix the default/unset/whitespace context is **fail-closed member-scoped**, and a leak now needs the backend to **affirmatively assert `context='coach'` on a member request** — a commission, not an accidental dropped line.
+3. The member *principal* (the `ciyp-template` PWA user over PostgREST) cannot set GUCs directly; only the backend can.
+**Forward action (into the apps/api / H2 wave, not schema):** derive `app.context` from the verified principal's role claim (coach/admin ⇒ `coach`, member ⇒ `member`/unset), set it `SET LOCAL` per request, and add a middleware invariant test that a member JWT can **never** produce `context='coach'`. Note: `current_context()` is `btrim`'d, so `'  coach  '` also resolves to `coach` — the accepted coach token is trim-insensitive; keep the backend from ever forwarding client-supplied context text.
+
+### H2 → **DEFERRED (agree, one line)**
+Correct. Cryptographic binding of tenant/context identity is an apps/api-layer control (SET LOCAL from verified session, lock down PostgREST `anon`/`authenticated`, no SECURITY DEFINER `set_config` RPC). Not closable in the schema wave; routing is right.
+
+### M1 / M3 → **CLOSED**
+`usage_ledger` unique is now `(tenant_id, idempotency_key)`; `stripe_events` is `(tenant_id, event_id)`. Live: same key inserted for tenant A **and** a second tenant → both succeed (`rows=2`); a third insert of the same key under tenant A → `duplicate key … usage_ledger_tenant_idempotency_key_uq`. Seed `on conflict (tenant_id, idempotency_key)` matches the constraint (no silent seed drop). `stripe_events` is **not** seeded, so no on-conflict mismatch to corrupt.
+
+### M2 → **CLOSED**
+`anon` holds **zero** privileges on every `public` table (`revoke all … from anon` + default-priv revoke). anon TRUNCATE/DML all `permission denied` live.
+
+### L1 (Med#4) → **CLOSED**
+`current_tenant_id/member_id/context()` are `nullif(btrim(current_setting(...,true)),'')`. Live `set app.tenant_id='   '` → all three readers `(null)`, `members-visible=0`, and the **transaction stays alive** (no `invalid input syntax for type uuid` abort). Whitespace now reads as unset, not a hard error.
+
+### L2 (ReDoS) → **FORWARD-ROUTED (agree, one line)**
+This branch stores cue **data** only: `app_config.engine_config` jsonb (`memberDocCues {kind,pattern,flags}[]`), seeded from static `ENGINE_CONFIG` literals. **No regex is compiled-and-run against member text here.** The one `new RegExp()` in `verify/index.ts` is a *compilability* check over trusted seed cues — construction only, never `.test()` on adversarial input — so no ReDoS surface is added. The runtime compile+run (`cue.re.test(memberMessage)`) lives in `packages/agents` (already on main); the runtime bound (pattern-length cap / flag allowlist / `re2`-or-timeout) is owed by the engine/apps/api layer, unchanged by this branch. **Storing unbounded tenant regex text at the DB layer is not itself a problem** — jsonb holds inert text with no execution and no DB-side DoS; a length cap would be defense-in-depth, not required.
+
+---
+
+### New findings introduced by the fixes
+**None.** The context-forge behaviour (H1-d) is H2-class and folded forward; no new schema-layer vulnerability.
+
+### Informational hardening note (not a finding, not merge-blocking)
+The future-table default-privilege pin is scoped to role **`postgres`** (`alter default privileges for role postgres …`). Supabase's `supabase_admin` default ACL on `public` tables still grants the full `arwdDxtm` (incl. TRUNCATE) to app roles. All CIYP migrations run as `postgres` and every control-plane table is `postgres`-owned, so the committed state is fully covered — but if a future migration or tooling ever creates a `public` table as `supabase_admin`, the TRUNCATE/REFERENCES/TRIGGER leak reopens for that table. Keep table creation under `postgres`, or extend the `alter default privileges` to `supabase_admin` if that ever changes.
+
+**Bottom line:** Track B is **merge-safe** from a security standpoint. C1/H1/M1/M2/M3/L1 closed and reproduced live; H2 + L2 correctly forward-routed; the new `app.context` GUC is a strict improvement that adds one item to H2's apps/api control list.

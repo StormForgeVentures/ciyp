@@ -28,7 +28,7 @@ Create the multi-tenant Postgres schema: `tenants` as the root entity, every dom
 | AC-4 | Given a member-owned table seeded with two members of the same tenant, when member 1's context queries it, then only member 1's rows return (member fence independent of tenant fence). |
 | AC-5 | Given an existing `wallet_ledger` row, when the app role attempts UPDATE or DELETE, then the statement is rejected. |
 | AC-6 | Given two inserts into `usage_ledger` with the same `idempotency_key`, then the second insert is rejected or de-duplicated (unique constraint proven by test). |
-| AC-7 | Given the seeded `member_facts` table, when `EXPLAIN` runs on the tenant+member-scoped kNN recall query, then the plan uses the HNSW index (no sequential scan). |
+| AC-7 | Given the seeded `member_facts` table, when the tenant+member-scoped kNN recall query is planned with exact-scan alternatives disabled (`enable_seqscan/indexscan/bitmapscan = off`) and a constant query vector, then the plan uses the HNSW index — proving HNSW is a usable access path. (REWORDED, decision #20: the original "no sequential scan under the default planner" is unsatisfiable at seed volume — the optimizer correctly prefers an exact scan over ~31 rows; natural HNSW selection is a production-scale property per architecture §4.4, validated at load test, not seed.) |
 | AC-8 | Given the schema SQL, when grepped for the strings of any Kyle-era coach-IP enum value (archetype/tier/method names), then zero matches. |
 
 ## Data requirements

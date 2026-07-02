@@ -23,8 +23,8 @@
 
 ## Wave 1 — substrate (parallel: 2)
 
-- [ ] developer — 001 §3.0 + §4.0 schema, RLS, index plan, Luminify seed (feature/schema-seed; inputs: 001 §1–2; output: `pnpm db:reset && pnpm seed` green + seed-verify in CI)
-- [ ] developer — 002 §1.0 engine port: pure `@ciyp/agents` + `@ciyp/prompts` (feature/engine-port; inputs: 001 §2 shared types, EL-OS ref; output: ported packages, tests green, coach-IP grep clean)
+- [x] developer — 001 §3.0 + §4.0 schema, RLS, index plan, Luminify seed (feature/schema-seed; inputs: 001 §1–2; output: `pnpm db:reset && pnpm seed` green + seed-verify in CI) — DONE + merged (main 1410fe4). QA+Security passed after fix loop (C1 TRUNCATE + H1 fail-open closed). seed-verify 41/41, isolation 11/11.
+- [x] developer — 002 §1.0 engine port: pure `@ciyp/agents` + `@ciyp/prompts` (feature/engine-port; inputs: 001 §2 shared types, EL-OS ref; output: ported packages, tests green, coach-IP grep clean) — DONE + merged (main ac7b120). QA merge-ready 0 must-fix; 228 tests, purity clean.
 
 ## Wave 2 — runtime + first surfaces (parallel: 3)
 

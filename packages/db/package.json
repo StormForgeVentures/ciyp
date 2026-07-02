@@ -1,0 +1,28 @@
+{
+  "name": "@ciyp/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CIYP database seed + seed-verify + RLS isolation proof (PRD-001c). Applies after `supabase db reset`; embeds the Luminify default tenant with live Voyage embeddings cached as content-hash fixtures.",
+  "scripts": {
+    "seed": "tsx src/seed/index.ts",
+    "verify": "tsx src/verify/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.16.0",
+    "@types/node": "^22.10.1",
+    "@types/pg": "^8.20.0",
+    "eslint": "^9.16.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.17.0",
+    "vitest": "^2.1.8"
+  }
+}

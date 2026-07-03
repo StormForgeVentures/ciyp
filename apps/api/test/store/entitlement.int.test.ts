@@ -1,13 +1,14 @@
 // Entitlement projection — integration against the REAL local DB (PRD-008a §1.3).
 // AC-4 contract-05 schema (on a fixture AND on a real seed member), AC-7 expiry fixture,
-// AC-8 forged-param RLS fence (decision #19).
-process.env.SESSION_JWT_SECRET ??= "test-session-secret-value";
-
+// AC-8 RLS fence (decision #19). Driven through the member-scoped, RLS-enforced DB session
+// (withMemberSession) so the projection + fence are exercised without a transport/token
+// shortcut — the real HTTP auth path (Supabase JWKS → DB principal) is proven separately in
+// member-auth.int.test.ts. Runs in CI (DB only, no auth server needed).
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Entitlement } from "@stormforgeventures/ciyp-shared";
-import { app } from "../../src/index.js";
-import { signMemberSession } from "../../src/store/auth.js";
+import { resolveEntitlement } from "../../src/store/entitlement.js";
 import { withMemberSession, closePool } from "../../src/store/db.js";
+import type { MemberSession } from "../../src/store/member-auth.js";
 import {
   addSubscription,
   buildTenantGraph,
@@ -19,17 +20,11 @@ import {
 let A: TenantGraph;
 let B: TenantGraph;
 
-async function getEntitlement(
-  token: string,
-  urlSuffix = "",
-): Promise<{ status: number; body: Record<string, unknown> }> {
-  const res = await app.request(`/v1/entitlement${urlSuffix}`, {
-    headers: { authorization: `Bearer ${token}` },
-  });
-  return {
-    status: res.status,
-    body: (await res.json()) as Record<string, unknown>,
-  };
+/** Resolve the contract-05 entitlement exactly as the route does: member-scoped, RLS-fenced. */
+async function entitlementFor(session: MemberSession) {
+  return withMemberSession(session, (client) =>
+    resolveEntitlement(client, session),
+  );
 }
 
 beforeAll(async () => {
@@ -65,16 +60,13 @@ afterAll(async () => {
   await closePool();
 });
 
-describe("GET /v1/entitlement (contract 05)", () => {
+describe("entitlement projection (contract 05)", () => {
   it("AC-4: an entitled member gets a contract-05-valid active entitlement", async () => {
-    const token = signMemberSession({
+    const ent = await entitlementFor({
       tenantId: A.tenantId,
       memberId: A.members.active!,
     });
-    const { status, body } = await getEntitlement(token);
-    expect(status).toBe(200);
-    expect(() => Entitlement.parse(body)).not.toThrow();
-    const ent = Entitlement.parse(body);
+    expect(() => Entitlement.parse(ent)).not.toThrow();
     expect(ent.memberId).toBe(A.members.active);
     expect(ent.tenantId).toBe(A.tenantId);
     expect(ent.status).toBe("active");
@@ -91,13 +83,10 @@ describe("GET /v1/entitlement (contract 05)", () => {
     expect(rows.length, "seed member ada.new must exist — run pnpm seed").toBe(
       1,
     );
-    const token = signMemberSession({
+    const ent = await entitlementFor({
       tenantId: rows[0]!.tenant_id,
       memberId: rows[0]!.id,
     });
-    const { status, body } = await getEntitlement(token);
-    expect(status).toBe(200);
-    const ent = Entitlement.parse(body);
     expect(ent.status).toBe("active");
     expect(ent.memberId).toBe(rows[0]!.id);
   });
@@ -110,13 +99,10 @@ describe("GET /v1/entitlement (contract 05)", () => {
     // (seed cleo is expired, but assert the null-path via a fresh member with no sub)
     const graph = await buildTenantGraph({ memberKeys: ["nosub"] });
     try {
-      const token = signMemberSession({
+      const ent = await entitlementFor({
         tenantId: graph.tenantId,
         memberId: graph.members.nosub!,
       });
-      const { status, body } = await getEntitlement(token);
-      expect(status).toBe(200);
-      const ent = Entitlement.parse(body);
       expect(ent.status).toBe("none");
       expect(ent.tierKey).toBeNull();
       expect(ent.features).toEqual([]);
@@ -132,12 +118,10 @@ describe("GET /v1/entitlement (contract 05)", () => {
         where tenant_id = $1 and member_id = $2`,
       [A.tenantId, A.members.ac7!],
     );
-    const token = signMemberSession({
+    const ent = await entitlementFor({
       tenantId: A.tenantId,
       memberId: A.members.ac7!,
     });
-    const { body } = await getEntitlement(token);
-    const ent = Entitlement.parse(body);
     expect(ent.status).toBe("expired");
   });
 
@@ -146,29 +130,11 @@ describe("GET /v1/entitlement (contract 05)", () => {
       `select m.id, m.tenant_id from members m join tenants t on t.id = m.tenant_id
         where t.slug = 'luminify' and m.email = 'cleo.expired@example.com' limit 1`,
     );
-    const token = signMemberSession({
+    const ent = await entitlementFor({
       tenantId: rows[0]!.tenant_id,
       memberId: rows[0]!.id,
     });
-    const { body } = await getEntitlement(token);
-    expect(Entitlement.parse(body).status).toBe("expired");
-  });
-
-  it("AC-8: forged tenant_id/member_id params are ignored — identity comes from the token", async () => {
-    const token = signMemberSession({
-      tenantId: A.tenantId,
-      memberId: A.members.active!,
-    });
-    // Forge tenant B + tenant-B member in the query string AND a spoof header.
-    const suffix = `?tenant_id=${B.tenantId}&member_id=${B.members.other}`;
-    const res = await app.request(`/v1/entitlement${suffix}`, {
-      headers: { authorization: `Bearer ${token}`, "x-tenant-id": B.tenantId },
-    });
-    const ent = Entitlement.parse(await res.json());
-    // Must be tenant A's own member — never tenant B.
-    expect(ent.memberId).toBe(A.members.active);
-    expect(ent.tenantId).toBe(A.tenantId);
-    expect(ent.tenantId).not.toBe(B.tenantId);
+    expect(ent.status).toBe("expired");
   });
 
   it("AC-8 (RLS layer): under member A-active session, no other member/tenant rows are readable", async () => {

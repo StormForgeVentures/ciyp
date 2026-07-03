@@ -14,7 +14,7 @@
 import type Stripe from "stripe";
 import { withMemberSession } from "./db.js";
 import { resolveEntitlement, isEntitled } from "./entitlement.js";
-import type { MemberSession } from "./auth.js";
+import type { MemberSession } from "./member-auth.js";
 import type { CoachStripeConnector } from "./connector/port.js";
 
 export interface CheckoutDeps {

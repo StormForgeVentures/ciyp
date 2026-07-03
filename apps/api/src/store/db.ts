@@ -20,7 +20,7 @@
  */
 import pg from "pg";
 import { databaseUrl } from "./env.js";
-import type { MemberSession } from "./auth.js";
+import type { MemberSession } from "./member-auth.js";
 
 let pool: pg.Pool | null = null;
 

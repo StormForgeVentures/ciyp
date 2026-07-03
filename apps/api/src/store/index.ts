@@ -23,6 +23,9 @@ export type {
   StripeConnectorConfig,
   ConnectParams,
 } from "./connector/port.js";
-export { verifyMemberSession, signMemberSession } from "./auth.js";
-export type { MemberSession } from "./auth.js";
+export {
+  verifiedMemberSession,
+  resolveMemberPrincipal,
+} from "./member-auth.js";
+export type { MemberSession } from "./member-auth.js";
 export { closePool } from "./db.js";

@@ -15,7 +15,7 @@
  */
 import type { PoolClient } from "pg";
 import { Entitlement } from "@stormforgeventures/ciyp-shared";
-import type { MemberSession } from "./auth.js";
+import type { MemberSession } from "./member-auth.js";
 
 export type ContractStatus =
   "active" | "trialing" | "past_due" | "canceled" | "expired" | "none";

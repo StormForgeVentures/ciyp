@@ -7,6 +7,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { getPool } from "../../src/store/db.js";
+import { env } from "../../src/lib/env.js";
 
 export interface TenantGraph {
   tenantId: string;
@@ -121,4 +122,98 @@ export async function teardown(tenantId: string): Promise<void> {
   } finally {
     client.release();
   }
+}
+
+// ── Real Supabase Auth (GoTrue) provisioning — how a member authenticates in production. ──
+// The store's member verifier resolves identity from a JWKS-verified Supabase session, so the
+// integration path must use real GoTrue users, not a minted-token shortcut (mirrors the admin
+// suite). Passwords come from SEED_ADMIN_PASSWORD (see .env.example); never hard-coded.
+
+const PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "";
+
+function adminHeaders(): Record<string, string> {
+  const key = env.supabaseServiceRoleKey();
+  return {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    "Content-Type": "application/json",
+  };
+}
+
+/** True when local GoTrue is up (CI runs bare Postgres with no auth server → skip). */
+export async function authServerReachable(): Promise<boolean> {
+  try {
+    const res = await fetch(`${env.supabaseUrl()}/auth/v1/health`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Create (or find) a GoTrue user, returning its auth.users id. Idempotent. */
+export async function ensureAuthUser(email: string): Promise<string> {
+  const res = await fetch(`${env.supabaseUrl()}/auth/v1/admin/users`, {
+    method: "POST",
+    headers: adminHeaders(),
+    body: JSON.stringify({ email, password: PASSWORD, email_confirm: true }),
+  });
+  if (res.ok) return ((await res.json()) as { id: string }).id;
+  const list = await fetch(
+    `${env.supabaseUrl()}/auth/v1/admin/users?per_page=200`,
+    { headers: adminHeaders() },
+  );
+  const body = (await list.json()) as {
+    users?: { id: string; email?: string }[];
+  };
+  const found = body.users?.find(
+    (u) => u.email?.toLowerCase() === email.toLowerCase(),
+  );
+  if (!found) throw new Error(`could not create/find auth user ${email}`);
+  return found.id;
+}
+
+/** Delete a GoTrue user (teardown — avoid orphan accumulation across runs). */
+export async function deleteAuthUser(authUserId: string): Promise<void> {
+  await fetch(`${env.supabaseUrl()}/auth/v1/admin/users/${authUserId}`, {
+    method: "DELETE",
+    headers: adminHeaders(),
+  }).catch(() => undefined);
+}
+
+/** Real password-grant access token (ES256, verified by the store via JWKS). */
+export async function accessToken(email: string): Promise<string> {
+  const res = await fetch(
+    `${env.supabaseUrl()}/auth/v1/token?grant_type=password`,
+    {
+      method: "POST",
+      headers: {
+        apikey: env.supabaseAnonKey(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password: PASSWORD }),
+    },
+  );
+  if (!res.ok)
+    throw new Error(`token grant failed for ${email}: ${res.status}`);
+  return ((await res.json()) as { access_token: string }).access_token;
+}
+
+/**
+ * Provision a member's Supabase Auth identity: mint a GoTrue user, link it to the member row
+ * (members.auth_user_id), and return the auth-user id + a real access token. This is exactly
+ * how the store's production verifier is reached — the DB linkage is the identity binding.
+ */
+export async function provisionMemberAuth(
+  memberId: string,
+  email: string,
+): Promise<{ authUserId: string; token: string }> {
+  const authUserId = await ensureAuthUser(email);
+  await query(`update members set auth_user_id = $1 where id = $2`, [
+    authUserId,
+    memberId,
+  ]);
+  const token = await accessToken(email);
+  return { authUserId, token };
 }

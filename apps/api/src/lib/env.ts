@@ -41,10 +41,60 @@ export const env = {
   port: (): number => Number(optional_('PORT', '8787')),
 };
 
-/** Validate everything the admin surface needs at boot. Throws with the first missing name. */
+/**
+ * Store connector vault DEK — the AES-256-GCM key that encrypts coach Stripe credentials
+ * (base64-encoded 32 bytes). Read lazily by store/vault at request time; validated HERE at
+ * boot so a missing/short/degenerate key fails loud instead of surfacing on the first webhook
+ * (production-mode "fail loud at boot" — wave-2 M-1). No silent empty-secret operation.
+ */
+function validateConnectorVaultKey(): void {
+  const raw = process.env.CONNECTOR_VAULT_KEY;
+  if (!raw || raw.trim() === '') {
+    throw new Error(
+      'Missing required env var CONNECTOR_VAULT_KEY. The program-access store encrypts coach ' +
+        'Stripe credentials with it (AES-256-GCM). Generate one with `openssl rand -base64 32`.',
+    );
+  }
+  const bytes = Buffer.from(raw, 'base64');
+  if (bytes.length !== 32) {
+    throw new Error(
+      `CONNECTOR_VAULT_KEY must decode to exactly 32 bytes (AES-256); got ${bytes.length}. ` +
+        'Generate with `openssl rand -base64 32`.',
+    );
+  }
+  // Reject an obviously degenerate key (all-identical bytes, e.g. a zero-filled placeholder).
+  if (bytes.every((b) => b === bytes[0])) {
+    throw new Error(
+      'CONNECTOR_VAULT_KEY looks degenerate (all bytes identical). Use a random key: ' +
+        '`openssl rand -base64 32`.',
+    );
+  }
+  // NEW-1 (security wave-2 re-verify): the .env.example default is a real, high-entropy key that
+  // passes every check above — so it must be explicitly blocked in production, else an operator who
+  // ships .env.example verbatim encrypts coach Stripe creds under a publicly-committed key.
+  if (process.env.NODE_ENV === 'production' && raw.trim() === EXAMPLE_CONNECTOR_VAULT_KEY) {
+    throw new Error(
+      'CONNECTOR_VAULT_KEY is the committed .env.example default — never valid in production. ' +
+        'Generate a unique key with `openssl rand -base64 32`.',
+    );
+  }
+}
+
+// The dev-only throwaway published in .env.example — rejected in production above.
+const EXAMPLE_CONNECTOR_VAULT_KEY = 'oB56qk9v3m9E9pRm0DvLKbTYXOrKL3zlkG6sOUQcevw=';
+
+/**
+ * Validate everything the wave-2 apps/api surfaces need at boot. Throws with the first bad var.
+ *
+ * The store's MEMBER auth path now rides the same Supabase Auth vars as the admin surface
+ * (SUPABASE_URL for JWKS + the anon/service keys) — the interim self-minted HS256 session
+ * secret was removed (wave-2 H-1), so there is no separate SESSION_JWT_SECRET to configure.
+ * The one store-specific secret is the connector vault DEK, validated below (M-1).
+ */
 export function validateEnv(): void {
   env.databaseUrl();
   env.supabaseUrl();
   env.supabaseAnonKey();
   env.supabaseServiceRoleKey();
+  validateConnectorVaultKey();
 }

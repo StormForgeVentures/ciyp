@@ -8,7 +8,7 @@
  *   POST /webhooks/stripe/:endpoint  — public; Stripe-signature-verified per tenant
  */
 import { Hono } from "hono";
-import { verifyMemberSession } from "./auth.js";
+import { verifiedMemberSession } from "./member-auth.js";
 import { withMemberSession } from "./db.js";
 import { resolveEntitlement } from "./entitlement.js";
 import { createCheckoutSession } from "./checkout.js";
@@ -40,10 +40,11 @@ export function createStoreRoutes(deps: StoreRouteDeps): Hono {
   const store = new Hono();
 
   store.get("/v1/entitlement", async (c) => {
-    const session = verifyMemberSession(c.req.header("authorization"));
+    const session = await verifiedMemberSession(c.req.header("authorization"));
     if (!session) return c.json({ error: "unauthorized" }, 401);
-    // tenant + member come from the verified token ONLY (decision #19); any body/query
-    // tenant_id/member_id is ignored, and the member RLS fence is the second layer.
+    // tenant + member are DB-derived from the verified Supabase auth user (decision #19 /
+    // H-1 closure); any body/query tenant_id/member_id is ignored, and the member RLS fence
+    // is the second layer.
     const entitlement = await withMemberSession(session, (client) =>
       resolveEntitlement(client, session),
     );
@@ -51,7 +52,7 @@ export function createStoreRoutes(deps: StoreRouteDeps): Hono {
   });
 
   store.post("/v1/checkout-session", async (c) => {
-    const session = verifyMemberSession(c.req.header("authorization"));
+    const session = await verifiedMemberSession(c.req.header("authorization"));
     if (!session) return c.json({ error: "unauthorized" }, 401);
     const result = await createCheckoutSession(
       {
